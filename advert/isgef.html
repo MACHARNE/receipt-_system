@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <!-- =========================================
+     ISGEF 2026 — IDK's Own Event
+     Bouncing logo beside heading (desktop)
+     5-image rotating gallery on the right
+========================================== -->
+<section class="idk-isgef-banner" id="idkIsgefBanner">
+
+  <div class="idk-isgef-wrap">
+
+    <!-- LEFT: TEXT -->
+    <div class="idk-isgef-text">
+
+      <div class="idk-isgef-label">
+        <span></span>
+        Hosted by IDK
+      </div>
+
+      <!-- HEADING ROW: title + bouncing logo -->
+      <div class="idk-isgef-title-row">
+
+        <h2 class="idk-isgef-title">
+          IDK Southeast<br>
+          <span>Global Education Fair</span>
+        </h2>
+
+        <img
+          src="./dimage/Blue_and_Yellow_Modern_Real_Estate_Flyer-removebg-preview.png"
+          alt="ISGEF 2026 logo"
+          class="idk-isgef-bounce-logo"
+        >
+
+      </div>
+
+      <p class="idk-isgef-theme">
+        Discover your future beyond borders — connecting Southeast Nigerian
+        students with life-changing global education opportunities.
+      </p>
+
+      <div class="idk-isgef-details">
+        <div>
+          <small>Date</small>
+          <strong>10 October 2026</strong>
+        </div>
+        <div>
+          <small>Time</small>
+          <strong>09:00 AM</strong>
+        </div>
+        <div>
+          <small>Venue</small>
+          <strong>IDK Learning Centre, Awka</strong>
+        </div>
+      </div>
+
+      <div class="idk-isgef-buttons">
+        <a href="https://forms.gle/LsUqJZNAEP6cowzz8"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="idk-register-btn">
+          Register for ISGEF
+        </a>
+        <a href="https://idklearningcentre.com/isgef/"
+           class="idk-learn-btn">
+          Learn More
+        </a>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: ROTATING IMAGE GALLERY -->
+    <div class="idk-isgef-visual">
+
+      <div class="idk-isgef-gallery" aria-hidden="true">
+        <div class="idk-gallery-slide idk-slide-1 is-active"></div>
+        <div class="idk-gallery-slide idk-slide-2"></div>
+        <div class="idk-gallery-slide idk-slide-3"></div>
+        <div class="idk-gallery-slide idk-slide-4"></div>
+        <div class="idk-gallery-slide idk-slide-5"></div>
+      </div>
+
+      <div class="idk-isgef-date">
+        <strong>10</strong>
+        <span>OCT<br>2026</span>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!--
+<section class="ief-featured-event" id="iefFeaturedEvent">
+  <div class="ief-event-container">
+    <div class="ief-event-content">
+      <div class="ief-event-label">
+        <span></span>
+        Official Partner Event
+      </div>
+
+      <h1>
+        International
+        <span>Education Fair</span>
+      </h1>
+
+      <p class="ief-event-subtitle">
+        Open doors to global opportunities.
+      </p>
+
+      <p class="ief-event-description">
+        Connect with leading institutions, explore international study pathways,
+        and take the next step toward a world-class education and a brighter future.
+      </p>
+
+      <div class="ief-event-details">
+        <div class="ief-event-detail">
+          <small>Date</small>
+          <strong>01 October 2026</strong>
+          <span>Thursday</span>
+        </div>
+        <div class="ief-event-detail">
+          <small>Time</small>
+          <strong>09:00 AM</strong>
+          <span>WAT</span>
+        </div>
+        <div class="ief-event-detail">
+          <small>Venue</small>
+          <strong>Hotel Presidential</strong>
+          <span>By Amber, Enugu</span>
+        </div>
+      </div>
+
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLSdCNmhBSOEynBO3V8O0yXV119Ea8a1q1_4f2fYbciugrzkBWw/viewform?pli=1"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="ief-register-btn"
+      >
+        Reserve Your Spot
+        <span>→</span>
+      </a>
+    </div>
+
+    <div class="ief-event-image">
+      <div class="ief-date-badge">
+        <strong>01</strong>
+        <span>OCT<br>2026</span>
+      </div>
+      <img src="./dimage/apply.png" alt="International Education Fair promotional image">
+    </div>
+  </div>
+</section>
+-->
+
+<style>
+.ief-featured-event {
+  padding: 20px 0 0;
+  background: transparent;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  color: #1e1e1e;
+  box-sizing: border-box;
+}
+
+.ief-featured-event *,
+.ief-featured-event *::before,
+.ief-featured-event *::after {
+  box-sizing: border-box;
+}
+
+.ief-event-container {
+  max-width: 1180px;
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10);
+}
+
+.ief-event-content {
+  padding: 70px 60px;
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ief-event-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: #d81c1c;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.ief-event-label span {
+  width: 30px;
+  height: 3px;
+  background: #d81c1c;
+  display: block;
+}
+
+.ief-event-content h1 {
+  margin: 0;
+  color: #111111;
+  font-size: 54px;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-weight: 700;
+  font-family: 'Poppins', 'Inter', Arial, sans-serif;
+}
+
+.ief-event-content h1 span {
+  display: block;
+  color: #d81c1c;
+}
+
+.ief-event-subtitle {
+  margin: 25px 0 10px;
+  color: #1e1e1e;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.ief-event-description {
+  max-width: 540px;
+  margin: 0 0 30px;
+  color: #666666;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.ief-event-details {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 1.3fr;
+  margin-bottom: 32px;
+  padding: 25px 0;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.ief-event-detail {
+  padding: 0 20px;
+  border-right: 1px solid #e5e5e5;
+}
+
+.ief-event-detail:first-child { padding-left: 0; }
+.ief-event-detail:last-child { border-right: none; }
+
+.ief-event-detail small {
+  display: block;
+  margin-bottom: 8px;
+  color: #888888;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.ief-event-detail strong {
+  display: block;
+  color: #111111;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ief-event-detail span {
+  display: block;
+  margin-top: 4px;
+  color: #666666;
+  font-size: 12px;
+}
+
+.ief-register-btn {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.9rem 2rem;
+  background: #d81c1c;
+  color: #ffffff;
+  border: 2px solid #d81c1c;
+  border-radius: 60px;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: 0.25s;
+}
+
+.ief-register-btn:hover {
+  background: transparent;
+  color: #d81c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(216, 28, 28, 0.25);
+}
+
+.ief-register-btn span { font-size: 18px; }
+
+.ief-event-image {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  background: #f9f9f9;
+  min-height: 650px;
+  overflow: hidden;
+}
+
+.ief-event-image img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff9f9 0%, #f4f4f4 100%);
+}
+
+.ief-date-badge {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.ief-date-badge strong {
+  color: #d81c1c;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.ief-date-badge span {
+  color: #111111;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.idk-isgef-banner {
+  padding: 80px 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  color: #1e1e1e;
+  box-sizing: border-box;
+}
+
+.idk-isgef-banner *,
+.idk-isgef-banner *::before,
+.idk-isgef-banner *::after {
+  box-sizing: border-box;
+}
+
+.idk-isgef-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.10);
+}
+
+.idk-isgef-text {
+  padding: 55px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.idk-isgef-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  color: #d81c1c;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.idk-isgef-label span {
+  width: 30px;
+  height: 3px;
+  background: #d81c1c;
+  display: block;
+}
+
+.idk-isgef-title-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+
+.idk-isgef-title {
+  margin: 0;
+  flex: 1 1 auto;
+  color: #111111;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  font-weight: 700;
+  font-family: 'Poppins', 'Inter', Arial, sans-serif;
+}
+
+.idk-isgef-title span {
+  display: block;
+  color: #d81c1c;
+}
+
+.idk-isgef-bounce-logo {
+  flex: 0 0 auto;
+  width: 120px;
+  height: auto;
+  display: block;
+  align-self: center;
+  animation: idkLogoBounce 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.15));
+}
+
+@keyframes idkLogoBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.idk-isgef-theme {
+  margin: 0 0 26px;
+  padding-left: 16px;
+  border-left: 3px solid #d81c1c;
+  color: #1e1e1e;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.idk-isgef-details {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr 1.3fr;
+  margin-bottom: 30px;
+  padding: 20px 0;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.idk-isgef-details > div {
+  padding: 0 18px;
+  border-right: 1px solid #e5e5e5;
+}
+
+.idk-isgef-details > div:first-child { padding-left: 0; }
+.idk-isgef-details > div:last-child { border-right: none; padding-right: 0; }
+
+.idk-isgef-details small {
+  display: block;
+  margin-bottom: 6px;
+  color: #888888;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.idk-isgef-details strong {
+  display: block;
+  color: #111111;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.idk-isgef-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.idk-register-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.85rem 1.9rem;
+  background: #d81c1c;
+  color: #ffffff;
+  border: 2px solid #d81c1c;
+  border-radius: 60px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: 0.25s;
+}
+
+.idk-register-btn:hover {
+  background: transparent;
+  color: #d81c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(216, 28, 28, 0.25);
+}
+
+.idk-learn-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.85rem 1.9rem;
+  background: transparent;
+  color: #111111;
+  border: 2px solid #111111;
+  border-radius: 60px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: 0.25s;
+}
+
+.idk-learn-btn:hover {
+  background: #111111;
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.idk-isgef-visual {
+  position: relative;
+  min-height: 520px;
+  background: #f9f9f9;
+  overflow: hidden;
+}
+
+.idk-isgef-gallery {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.idk-gallery-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: opacity 1.4s ease-in-out, transform 3.5s ease-out;
+}
+
+.idk-gallery-slide.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.idk-slide-1 { background-image: url('dimage/idk\ \(1\).jpeg'); }
+.idk-slide-2 { background-image: url('dimage/idk\ \(1\).jpg'); }
+.idk-slide-3 { background-image: url('dimage/idk\ \(2\).jpeg'); }
+.idk-slide-4 { background-image: url('dimage/idk\ \(2\).jpg'); }
+.idk-slide-5 { background-image: url('dimage/idk\ \(3\).jpeg'); }
+.idk-slide-4 { background-image: url('dimage/idk\ \(3\).jpg'); }
+.idk-slide-5 { background-image: url('dimage/idk\ \(4\).jpeg'); }
+
+.idk-isgef-date {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 15px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
+}
+
+.idk-isgef-date strong {
+  color: #d81c1c;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.idk-isgef-date span {
+  color: #111111;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .idk-isgef-wrap { grid-template-columns: 1fr; }
+  .idk-isgef-visual { min-height: 340px; order: -1; }
+  .idk-isgef-text { padding: 40px 30px; }
+  .idk-isgef-title { font-size: 34px; }
+  .idk-isgef-bounce-logo { display: none; }
+  .idk-isgef-title-row { gap: 0; }
+}
+
+@media (max-width: 600px) {
+  .idk-isgef-banner { padding: 50px 15px; }
+  .idk-isgef-text { padding: 32px 22px; }
+  .idk-isgef-title { font-size: 28px; letter-spacing: -0.8px; }
+  .idk-isgef-theme { font-size: 14px; }
+
+  .idk-isgef-details {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .idk-isgef-details > div {
+    padding: 0 0 14px;
+    border-right: none;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  .idk-isgef-details > div:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .idk-isgef-buttons { flex-direction: column; align-items: stretch; }
+  .idk-register-btn,
+  .idk-learn-btn { width: 100%; justify-content: center; }
+
+  .idk-isgef-visual { min-height: 260px; }
+  .idk-isgef-date { top: 14px; right: 14px; padding: 8px 12px; }
+  .idk-isgef-date strong { font-size: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .idk-isgef-bounce-logo { animation: none; }
+  .idk-gallery-slide { transition: none; transform: none; }
+}
+</style>
+
+<script>
+(function () {
+  var slides = document.querySelectorAll('.idk-gallery-slide');
+
+  if (slides.length) {
+    var idx = 0;
+    setInterval(function () {
+      slides[idx].classList.remove('is-active');
+      idx = (idx + 1) % slides.length;
+      slides[idx].classList.add('is-active');
+    }, 3000);
+  }
+})();
+</script>
+</body>
+</html>

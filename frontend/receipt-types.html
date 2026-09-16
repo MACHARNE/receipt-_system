@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt Types — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+<style>
+    .color-swatch {
+        width: 32px; height: 32px; border-radius: 6px;
+        border: 2px solid transparent; cursor: pointer;
+        transition: transform .12s ease;
+    }
+    .color-swatch:hover { transform: scale(1.1); }
+    .color-swatch.selected { border-color: #111827; }
+    .receipt-preview {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: .5rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,.05);
+        font-size: .8rem;
+    }
+    .receipt-preview .rp-header {
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .receipt-preview .rp-body { padding: 1rem; }
+    .receipt-preview .rp-total {
+        display: flex; justify-content: space-between;
+        padding: .5rem .75rem; border-radius: .375rem; margin-top: .5rem;
+    }
+    .field-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .6rem .75rem; border-bottom: 1px solid #f3f4f6;
+    }
+    .field-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand mb-0 h1" href="/dashboard.html">
+      <i class="bi bi-receipt-cutoff me-1"></i> Receipt System
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-user" id="navUser">…</span>
+      <button class="btn btn-sm btn-outline-light" id="logoutBtn">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="container-fluid py-4 px-3 px-md-4">
+
+  <div class="page-header">
+    <div>
+      <h4>Receipt Types</h4>
+      <div class="text-muted small">
+        Enable the receipt types your company uses. Configure custom fields and colors per type.
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+      <a href="/templates.html" class="btn btn-primary btn-sm">
+        <i class="bi bi-file-earmark-text me-1"></i> Templates
+      </a>
+    </div>
+  </div>
+
+  <div id="pageAlert" class="alert d-none" role="alert"></div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Enabled <span class="badge bg-secondary" id="enabledCount">0</span></span>
+        </div>
+        <div class="card-body p-0">
+          <div id="enabledList"><div class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          Available <span class="badge bg-secondary" id="availableCount">0</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="availableList"><div class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================================================
+     CONFIGURE TYPE MODAL (tabs: Fields / Appearance / Templates)
+     ============================================================ -->
+<div class="modal fade" id="configModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="configModalTitle">Configure</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabFields" type="button">
+              <i class="bi bi-input-cursor-text me-1"></i> Fields
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAppearance" type="button">
+              <i class="bi bi-palette me-1"></i> Appearance
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabTemplates" type="button">
+              <i class="bi bi-file-earmark-text me-1"></i> Templates
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+
+          <!-- ---------- FIELDS TAB ---------- -->
+          <div class="tab-pane fade show active" id="tabFields">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2">Master Fields</h6>
+                <div class="border rounded" id="masterFieldsList"></div>
+              </div>
+              <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2 d-flex justify-content-between">
+                  <span>Custom Fields</span>
+                  <button class="btn btn-sm btn-primary" id="addCustomFieldBtn">
+                    <i class="bi bi-plus-lg"></i> Add
+                  </button>
+                </h6>
+                <div class="border rounded" id="customFieldsList"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- APPEARANCE TAB ---------- -->
+          <div class="tab-pane fade" id="tabAppearance">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2">Base Color</h6>
+
+                <div class="mb-3">
+                  <div class="d-flex flex-wrap gap-2 mb-3" id="colorPalette"></div>
+                  <label class="form-label small">Custom color</label>
+                  <div class="d-flex gap-2">
+                    <input type="color" class="form-control form-control-color" id="customColor"
+                           value="#0d6efd" style="width:60px;">
+                    <input type="text" class="form-control" id="customColorHex" maxlength="7">
+                  </div>
+                </div>
+
+                <div id="themeInfo" class="alert alert-light border small">
+                  <div>Header text: <span id="themeHeaderText">—</span></div>
+                  <div>Accent: <span id="themeAccent">—</span></div>
+                </div>
+
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="retainColor">
+                  <label class="form-check-label" for="retainColor">
+                    Retain this color for future receipts of this type
+                  </label>
+                </div>
+
+                <button class="btn btn-primary" id="saveThemeBtn">
+                  <i class="bi bi-check2 me-1"></i> Save Appearance
+                </button>
+              </div>
+
+              <div class="col-md-6">
+                <h6 class="text-muted text-uppercase small mb-2">Live Preview</h6>
+                <div class="receipt-preview" id="receiptPreview">
+                  <div class="rp-header" id="rpHeader">
+                    <div>
+                      <div style="font-weight:700; font-size:.9rem;">YOUR COMPANY</div>
+                      <div style="opacity:.85; font-size:.75rem;">12 Broad Street, Lagos</div>
+                    </div>
+                    <div style="text-align:right; font-size:.75rem;">
+                      <div style="font-weight:600;">Receipt #</div>
+                      <div>IDK-2026-00001</div>
+                    </div>
+                  </div>
+                  <div class="rp-body">
+                    <div class="mb-2" style="font-size:.75rem;">
+                      <div><strong>Date:</strong> 13 Sep 2026</div>
+                      <div><strong>Student:</strong> John Doe</div>
+                      <div><strong>Class:</strong> JSS1</div>
+                    </div>
+
+                    <table class="table table-sm mb-0" style="font-size:.75rem;">
+                      <thead>
+                        <tr>
+                          <th>Item</th>
+                          <th class="text-end">Qty</th>
+                          <th class="text-end">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td>Tuition Fee</td><td class="text-end">1</td><td class="text-end">₦50,000</td></tr>
+                        <tr><td>ICT Fee</td><td class="text-end">1</td><td class="text-end">₦5,000</td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="rp-total" id="rpTotal">
+                      <span>Grand Total</span>
+                      <strong>₦55,000</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="text-muted small mt-2">
+                  Text always stays readable — the header text color is computed from the base color.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- TEMPLATES TAB ---------- -->
+          <div class="tab-pane fade" id="tabTemplates">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="text-muted text-uppercase small mb-0">Templates for this type</h6>
+              <a href="/templates.html" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-up-right-square me-1"></i> Open Templates Page
+              </a>
+            </div>
+            <div class="border rounded" id="templatesList"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CUSTOM FIELD MODAL
+     ============================================================ -->
+<div class="modal fade" id="fieldModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="fieldForm" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="fieldModalTitle">Add Custom Field</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="fieldAlert" class="alert d-none" role="alert"></div>
+
+          <div class="mb-3">
+            <label class="form-label">Label <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="fLabel" required
+                   placeholder="e.g. Hostel Block">
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Type <span class="text-danger">*</span></label>
+              <select class="form-select" id="fType" required>
+                <option value="text">Text</option>
+                <option value="textarea">Text area</option>
+                <option value="number">Number</option>
+                <option value="currency">Currency</option>
+                <option value="date">Date</option>
+                <option value="select">Dropdown</option>
+                <option value="checkbox">Checkbox</option>
+                <option value="phone">Phone</option>
+                <option value="email">Email</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Placeholder</label>
+              <input type="text" class="form-control" id="fPlaceholder">
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3" id="fOptionsWrap" style="display:none;">
+            <label class="form-label">Options (comma-separated)</label>
+            <input type="text" class="form-control" id="fOptions" placeholder="A, B, C, D">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Default value (optional)</label>
+            <input type="text" class="form-control" id="fDefaultValue">
+          </div>
+
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="fRequired">
+            <label class="form-check-label" for="fRequired">Required</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="fSubmitBtn">Save Field</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index:1100;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/receipt-types.js"></script>
+</body>
+</html>

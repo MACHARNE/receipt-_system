@@ -1,0 +1,15 @@
+@media print {
+    body { background: #fff !important; }
+    .d-print-none, nav, .navbar, .page-header, .btn { display: none !important; }
+    .receipt-sheet {
+        border: none !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    main { padding: 0 !important; }
+    .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .receipt-totals { background: #fff !important; border: 1px solid #ccc; }
+    a { color: inherit !important; text-decoration: none !important; }
+    @page { margin: 1cm; }
+}

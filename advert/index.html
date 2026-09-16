@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+  <!-- =========================
+     FEATURED EVENT
+========================= -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>International Education Fair</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body>
+
+
+<!-- =========================================
+     FEATURED EVENT SECTION
+========================================= -->
+
+<section class="featured-event" id="featuredEvent">
+
+    <div class="event-container">
+
+
+        <!-- ================================
+             EVENT CONTENT
+        ================================= -->
+
+        <div class="event-content">
+
+            <div class="event-label">
+                <span></span>
+                Featured Event
+            </div>
+
+
+            <h1>
+                International
+                <span>Education Fair</span>
+            </h1>
+
+
+            <p class="event-subtitle">
+                Explore global opportunities.
+                Build your future.
+            </p>
+
+
+            <p class="event-description">
+                Discover international study opportunities
+                and explore pathways to leading global
+                education destinations.
+            </p>
+
+
+            <!-- EVENT INFORMATION -->
+
+            <div class="event-details">
+
+                <div class="event-detail">
+
+                    <small>Date</small>
+
+                    <strong>
+                        01 October 2026
+                    </strong>
+
+                    <span>Thursday</span>
+
+                </div>
+
+
+                <div class="event-detail">
+
+                    <small>Time</small>
+
+                    <strong>
+                        09:00 AM
+                    </strong>
+
+                    <span>WAT</span>
+
+                </div>
+
+
+                <div class="event-detail">
+
+                    <small>Venue</small>
+
+                    <strong>
+                        Hotel Presidential
+                    </strong>
+
+                    <span>
+                        By Amber, Enugu
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- REGISTER BUTTON -->
+
+            <a
+                href="https://docs.google.com/forms/d/e/1FAIpQLSdCNmhBSOEynBO3V8O0yXV119Ea8a1q1_4f2fYbciugrzkBWw/viewform?pli=1"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="register-btn"
+            >
+
+                Register Now
+
+                <span>→</span>
+
+            </a>
+
+        </div>
+
+
+
+        <!-- ================================
+             EVENT FLYER
+        ================================= -->
+
+        <div class="event-image">
+
+           
+
+            <div class="date-badge">
+
+                <strong>01</strong>
+
+                <span>
+                    OCT<br>
+                    2026
+                </span>
+
+            </div>
+ <img
+                src="./dimage/apply.png"
+                alt="International Education Fair"
+            >
+        </div>
+
+
+    </div>
+
+</section>
+
+
+
+<style>
+    /* =========================================
+   GENERAL
+========================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f5f7fa;
+
+    color: #172033;
+}
+
+
+@keyframes eventFloatIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+@keyframes flyerFloatIn {
+
+    from {
+        opacity: 0;
+        transform: translateX(-28px) scale(1.025);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+
+/* =========================================
+   FEATURED EVENT SECTION
+========================================= */
+
+.featured-event {
+
+    padding: 80px 20px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #f8fbff,
+            #eef5ff
+        );
+}
+
+
+.event-container {
+
+    width: 100%;
+    max-width: 1180px;
+
+    margin: 0 auto;
+
+    display: grid;
+
+    grid-template-columns:
+        0.9fr
+        1.1fr;
+
+    background: white;
+
+    border-radius: 20px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 20px 50px
+        rgba(0, 40, 100, 0.12);
+}
+
+
+/* =========================================
+   LEFT CONTENT
+========================================= */
+
+.event-content {
+
+    padding: 70px 60px;
+
+    grid-column: 2;
+
+    grid-row: 1;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+}
+
+
+.event-content > * {
+
+    opacity: 0;
+
+    animation: eventFloatIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+
+.event-content > :nth-child(1) {
+    animation-delay: 0.15s;
+}
+
+
+.event-content > :nth-child(2) {
+    animation-delay: 0.25s;
+}
+
+
+.event-content > :nth-child(3) {
+    animation-delay: 0.35s;
+}
+
+
+.event-content > :nth-child(4) {
+    animation-delay: 0.45s;
+}
+
+
+.event-content > :nth-child(5) {
+    animation-delay: 0.6s;
+}
+
+
+.event-content > :nth-child(6) {
+    animation-delay: 0.75s;
+}
+
+
+/* FEATURED EVENT LABEL */
+
+.event-label {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 20px;
+
+    color: #0754b8;
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+    letter-spacing: 2px;
+
+    text-transform: uppercase;
+}
+
+
+.event-label span {
+
+    width: 30px;
+
+    height: 3px;
+
+    background: #f5a400;
+}
+
+
+/* =========================================
+   HEADING
+========================================= */
+
+.event-content h1 {
+
+    margin: 0;
+
+    color: #092e68;
+
+    font-size: 58px;
+
+    line-height: 1;
+
+    letter-spacing: -2px;
+}
+
+
+.event-content h1 span {
+
+    display: block;
+
+    color: #0754b8;
+}
+
+
+/* =========================================
+   TEXT
+========================================= */
+
+.event-subtitle {
+
+    margin:
+
+        25px
+        0
+        10px;
+
+    color: #172033;
+
+    font-size: 21px;
+
+    font-weight: bold;
+}
+
+
+.event-description {
+
+    max-width: 540px;
+
+    margin:
+
+        0
+        0
+        30px;
+
+    color: #667085;
+
+    font-size: 16px;
+
+    line-height: 1.7;
+}
+
+
+/* =========================================
+   EVENT INFORMATION
+========================================= */
+
+.event-details {
+
+    display: grid;
+
+    grid-template-columns:
+
+        1fr
+        0.8fr
+        1.3fr;
+
+    margin-bottom: 32px;
+
+    padding:
+
+        25px
+        0;
+
+    border-top:
+
+        1px solid
+        #e3e7ed;
+
+    border-bottom:
+
+        1px solid
+        #e3e7ed;
+}
+
+
+.event-detail {
+
+    padding:
+
+        0
+        20px;
+
+    border-right:
+
+        1px solid
+        #e3e7ed;
+}
+
+
+.event-detail:first-child {
+
+    padding-left: 0;
+}
+
+
+.event-detail:last-child {
+
+    border-right: none;
+}
+
+
+.event-detail small {
+
+    display: block;
+
+    margin-bottom: 8px;
+
+    color: #98a2b3;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+
+    text-transform: uppercase;
+}
+
+
+.event-detail strong {
+
+    display: block;
+
+    color: #172033;
+
+    font-size: 14px;
+
+    line-height: 1.4;
+}
+
+
+.event-detail span {
+
+    display: block;
+
+    margin-top: 4px;
+
+    color: #667085;
+
+    font-size: 12px;
+}
+
+
+/* =========================================
+   REGISTER BUTTON
+========================================= */
+
+.register-btn {
+
+    width: fit-content;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 18px;
+
+    padding:
+
+        16px
+        26px;
+
+    background: #0754b8;
+
+    color: white;
+
+    border-radius: 7px;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    font-weight: bold;
+
+    transition: 0.25s;
+}
+
+
+.register-btn:hover {
+
+    background: #092e68;
+
+    transform:
+
+        translateY(-2px);
+
+    box-shadow:
+
+        0 10px 25px
+        rgba(7, 84, 184, 0.25);
+}
+
+
+.register-btn span {
+
+    font-size: 20px;
+}
+
+
+/* =========================================
+   FLYER
+========================================= */
+
+.event-image {
+
+    position: relative;
+
+    grid-column: 1;
+
+    grid-row: 1;
+
+    background: #eef5ff;
+
+    min-height: 650px;
+
+    overflow: hidden;
+}
+
+
+.event-image img {
+
+    width: 100%;
+
+    height: 100%;
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    display: block;
+
+    object-fit: contain;
+
+    object-position: center;
+
+    animation: flyerFloatIn 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+
+/* =========================================
+   DATE BADGE
+========================================= */
+
+.date-badge {
+
+    position: absolute;
+
+    top: 25px;
+
+    right: 25px;
+
+    z-index: 2;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding:
+
+        12px
+        16px;
+
+    background: white;
+
+    border-radius: 8px;
+
+    box-shadow:
+
+        0 8px 25px
+        rgba(0, 0, 0, 0.18);
+
+    animation: eventFloatIn 0.7s 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+
+.date-badge strong {
+
+    color: #0754b8;
+
+    font-size: 30px;
+}
+
+
+.date-badge span {
+
+    color: #172033;
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    line-height: 1.3;
+}
+
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 900px) {
+
+    .event-container {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .event-content,
+    .event-image {
+
+        grid-column: auto;
+
+        grid-row: auto;
+    }
+
+
+    .event-image {
+
+        min-height: 700px;
+    }
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 600px) {
+
+    .featured-event {
+
+        padding:
+
+            40px
+            15px;
+    }
+
+
+    .event-container {
+
+        border-radius: 12px;
+    }
+
+
+    .event-content {
+
+        padding:
+
+            40px
+            25px;
+    }
+
+
+    .event-content h1 {
+
+        font-size: 40px;
+
+        letter-spacing: -1px;
+    }
+
+
+    .event-subtitle {
+
+        font-size: 18px;
+    }
+
+
+    .event-details {
+
+        grid-template-columns: 1fr;
+
+        gap: 18px;
+    }
+
+
+    .event-detail {
+
+        padding:
+
+            0
+            0
+            18px;
+
+        border-right: none;
+
+        border-bottom:
+
+            1px solid
+            #e3e7ed;
+    }
+
+
+    .event-detail:last-child {
+
+        border-bottom: none;
+
+        padding-bottom: 0;
+    }
+
+
+    .register-btn {
+
+        width: 100%;
+
+        justify-content: center;
+    }
+
+
+    .event-image {
+
+        min-height: 550px;
+    }
+
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+    .event-content > *,
+    .event-image img,
+    .date-badge {
+
+        opacity: 1;
+
+        animation: none;
+
+        transform: none;
+    }
+}
+</style>
+<script >
+// ==========================================
+// FEATURED EVENT EXPIRY
+// ==========================================
+
+// Get the event section
+const featuredEvent =
+    document.getElementById("featuredEvent");
+
+
+// Event expires after 1 October 2026
+const eventEndDate =
+    new Date("2026-10-02T00:00:00+01:00");
+
+
+// Current date and time
+const currentDate =
+    new Date();
+
+
+// Check whether event has expired
+if (currentDate >= eventEndDate) {
+
+    featuredEvent.style.display = "none";
+
+    console.log(
+        "International Education Fair has expired."
+    );
+
+} else {
+
+    console.log(
+        "International Education Fair is currently active."
+    );
+
+}
+</script>
+</body>
+</html>

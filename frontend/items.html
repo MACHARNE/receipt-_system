@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Items & Services — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-dark app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand mb-0 h1" href="/dashboard.html">
+      <i class="bi bi-receipt-cutoff me-1"></i> Receipt System
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-user" id="navUser">…</span>
+      <button class="btn btn-sm btn-outline-light" id="logoutBtn">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= MAIN ================= -->
+<main class="container-fluid py-4 px-3 px-md-4">
+
+  <div class="page-header">
+    <div>
+      <h4>Items & Services</h4>
+      <div class="text-muted small" id="usageLine">Loading usage…</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+      <button class="btn btn-outline-secondary btn-sm" id="manageCategoriesBtn">
+        <i class="bi bi-tags me-1"></i> Categories
+      </button>
+      <button class="btn btn-outline-secondary btn-sm" id="importBtn">
+        <i class="bi bi-upload me-1"></i> Import CSV
+      </button>
+      <button class="btn btn-primary btn-sm" id="newItemBtn">
+        <i class="bi bi-plus-lg me-1"></i> New Item
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-5">
+          <input type="text" class="form-control" id="searchInput" placeholder="Search by name, SKU, or description…">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="filterCategory">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterStatus">
+            <option value="">All statuses</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Inactive only</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary w-100" id="clearFiltersBtn">
+            <i class="bi bi-x-circle me-1"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width:60px;">#</th>
+            <th>Name</th>
+            <th class="d-none d-md-table-cell">Category</th>
+            <th class="d-none d-lg-table-cell">SKU</th>
+            <th class="text-end">Price</th>
+            <th>Status</th>
+            <th class="text-end" style="width:120px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody">
+          <tr><td colspan="7" class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="text-muted small" id="paginationInfo">—</div>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary" id="prevPageBtn" disabled>
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="btn btn-outline-secondary" id="nextPageBtn" disabled>
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ================= ITEM MODAL ================= -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="itemForm" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="itemModalTitle">New Item</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="itemAlert" class="alert d-none" role="alert"></div>
+
+          <div class="mb-3">
+            <label class="form-label">Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="itName" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea class="form-control" id="itDescription" rows="2"></textarea>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Price <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="itPrice" min="0" step="0.01" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">SKU</label>
+              <input type="text" class="form-control" id="itSku">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select class="form-select" id="itCategory">
+                <option value="">— None —</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="itStatus">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="itemSubmitBtn">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CATEGORIES MODAL ================= -->
+<div class="modal fade" id="categoriesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Categories</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="catAlert" class="alert d-none" role="alert"></div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="catName" placeholder="Category name">
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="catDescription" placeholder="Description (optional)">
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-primary w-100" id="addCategoryBtn">Add</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr><th>Name</th><th class="d-none d-md-table-cell">Description</th><th class="text-end">Items</th><th></th></tr>
+            </thead>
+            <tbody id="catBody">
+              <tr><td colspan="4" class="text-muted text-center py-3">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= IMPORT MODAL ================= -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Items from CSV</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="importAlert" class="alert d-none" role="alert"></div>
+
+        <div class="mb-3">
+          <a href="/items/import/template" class="btn btn-outline-secondary btn-sm" download>
+            <i class="bi bi-download me-1"></i> Download CSV Template
+          </a>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Choose CSV file</label>
+          <input type="file" class="form-control" id="importFile" accept=".csv">
+        </div>
+
+        <!-- Preview area -->
+        <div id="importPreviewWrap" class="d-none">
+          <hr>
+          <h6 class="text-muted text-uppercase small mb-3">Preview</h6>
+
+          <div class="row g-2 mb-3">
+            <div class="col-3"><div class="stat-card text-center">
+              <div class="stat-label">Total</div>
+              <div class="stat-value" id="impTotal">—</div>
+            </div></div>
+            <div class="col-3"><div class="stat-card text-center">
+              <div class="stat-label">Valid</div>
+              <div class="stat-value text-success" id="impValid">—</div>
+            </div></div>
+            <div class="col-3"><div class="stat-card text-center">
+              <div class="stat-label">Errors</div>
+              <div class="stat-value text-danger" id="impErrors">—</div>
+            </div></div>
+            <div class="col-3"><div class="stat-card text-center">
+              <div class="stat-label">Remaining</div>
+              <div class="stat-value" id="impRemaining">—</div>
+            </div></div>
+          </div>
+
+          <div id="importLimitWarning" class="alert alert-warning d-none"></div>
+
+          <div id="importErrorList" class="d-none">
+            <h6 class="text-danger small text-uppercase mb-2">Errors</h6>
+            <div style="max-height:180px; overflow:auto;">
+              <table class="table table-sm">
+                <thead><tr><th>Line</th><th>Field</th><th>Problem</th></tr></thead>
+                <tbody id="impErrorsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-outline-primary d-none" id="validateBtn">
+          <i class="bi bi-search me-1"></i> Validate
+        </button>
+        <button type="button" class="btn btn-primary d-none" id="commitImportBtn">
+          <i class="bi bi-check2 me-1"></i> Import Valid Rows
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index:1100;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/items.js"></script>
+</body>
+</html>

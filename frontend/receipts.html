@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipts — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar navbar-dark app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand mb-0 h1" href="/dashboard.html">
+      <i class="bi bi-receipt-cutoff me-1"></i> Receipt System
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-user" id="navUser">…</span>
+      <button class="btn btn-sm btn-outline-light" id="logoutBtn">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main class="container-fluid py-4 px-3 px-md-4">
+
+  <div class="page-header">
+    <div>
+      <h4>Receipts</h4>
+      <div class="text-muted small">Browse issued receipts by type, or start a new one from a template.</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+      <a href="/receipt-new.html" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> Create receipt
+      </a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <input type="text" class="form-control" id="searchInput" placeholder="Search number, customer, phone…">
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterType">
+            <option value="">All receipt types</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterStatus">
+            <option value="">All statuses</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="void">Void</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterMethod">
+            <option value="">All methods</option>
+            <option>Cash</option>
+            <option>Bank Transfer</option>
+            <option>POS</option>
+            <option>Card</option>
+            <option>Cheque</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input type="date" class="form-control" id="filterFrom" title="From date">
+        </div>
+        <div class="col-md-2">
+          <input type="date" class="form-control" id="filterTo" title="To date">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width:150px;">Receipt #</th>
+            <th>Customer</th>
+            <th class="d-none d-md-table-cell">Type</th>
+            <th class="text-end">Total</th>
+            <th class="text-end d-none d-lg-table-cell">Paid</th>
+            <th class="text-end d-none d-lg-table-cell">Balance</th>
+            <th>Status</th>
+            <th class="text-end" style="width:90px;">View</th>
+          </tr>
+        </thead>
+        <tbody id="receiptsBody">
+          <tr><td colspan="8" class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="text-muted small" id="paginationInfo">—</div>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary" id="prevPageBtn" disabled>
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="btn btn-outline-secondary" id="nextPageBtn" disabled>
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index:1100;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/receipts.js"></script>
+</body>
+</html>

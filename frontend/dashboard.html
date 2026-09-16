@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-dark app-navbar"><div class="container-fluid">
+  <span class="navbar-brand mb-0 h1"><i class="bi bi-receipt-cutoff me-1"></i> Receipt System</span>
+  <div class="d-flex align-items-center gap-3"><span class="nav-user" id="navUser">…</span><button class="btn btn-sm btn-outline-light" id="logoutBtn">Logout</button></div>
+</div></nav>
+<main class="container py-4">
+  <div class="page-header"><div><h4>Receipts</h4><div class="text-muted small">Create, issue, and find receipts for your business.</div></div><a class="btn btn-primary" href="/receipts.html"><i class="bi bi-receipt me-1"></i> Open receipts</a></div>
+  <div class="row g-3">
+    <div class="col-md-8"><div class="card h-100"><div class="card-body p-4"><div class="text-primary mb-2"><i class="bi bi-stars fs-4"></i></div><h5>Issue a receipt in a few guided steps</h5><p class="text-muted mb-4">Start from a saved template, add customer and payment details, then review the calculated total before issuing.</p><a class="btn btn-primary" href="/receipt-new.html"><i class="bi bi-plus-lg me-1"></i> Create a receipt</a><a class="btn btn-link" href="/receipts.html">View issued receipts</a></div></div></div>
+    <div class="col-md-4"><div class="card h-100"><div class="card-body"><h6 class="text-uppercase text-muted small">Business profile</h6><p class="small text-muted mb-0">Your company name, logo, email, and phone number are managed by the platform administrator to keep every receipt consistent.</p></div></div></div>
+    <div class="col-md-6"><div class="card h-100"><div class="card-body d-flex flex-column"><h6 class="text-uppercase text-muted small">Receipt setup</h6><p class="small text-muted">Owners and admins can manage the receipt types, fields, colours, and reusable templates used when issuing.</p><div class="mt-auto d-flex gap-2"><a href="/receipt-types.html" class="btn btn-sm btn-outline-primary">Receipt types</a><a href="/templates.html" class="btn btn-sm btn-outline-primary">Templates</a></div></div></div></div>
+    <div class="col-md-6"><div class="card h-100"><div class="card-body d-flex flex-column"><h6 class="text-uppercase text-muted small">Items & services</h6><p class="small text-muted">Keep your common products and services ready so their names and prices can be added quickly to each receipt.</p><a href="/items.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Manage items</a></div></div></div>
+  </div>
+</main>
+<script src="./js/api.js"></script>
+<script>
+(async function () { try { const { user } = await api.get('/auth/me'); if (user.role === 'super_admin') return location.href = '/superadmin-dashboard.html'; document.getElementById('navUser').textContent = user.full_name || ''; } catch { location.href = '/index.html'; } })();
+document.getElementById('logoutBtn').addEventListener('click', async () => { try { await api.post('/auth/logout'); } finally { location.href = '/index.html'; } });
+</script>
+</body></html>

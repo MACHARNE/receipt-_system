@@ -2,7 +2,7 @@
 
 ## Multi-Purpose Receipt, Invoice & Payment Management System
 
-**Version:** 3.0 — Complete Consolidated Edition
+**Version:** 3.1 — Complete Consolidated Edition
 **Status:** Approved Baseline — Source of Truth for Development, Teaching, and Deployment
 **Document Owner:** Product & Engineering
 **Audience:** Product team, engineering team, students, QA, stakeholders
@@ -18,7 +18,8 @@
 | 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                           |
 | 1.3     | Superseded  | Bulk import                                                              |
 | 2.0     | Superseded  | Consolidated with built codebase                                         |
-| **3.0** | **Current** | **Complete PRD with theory, architecture, procedures, phases, glossary** |
+| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary     |
+| **3.1** | **Current** | **Company identity made platform-managed; receipt number format corrected; build status added (§52.1)** |
 
 ---
 
@@ -194,7 +195,7 @@ Full control of the company account.
 
 **Can:**
 
-- Configure company information, logo, receipt appearance
+- Read company information, logo and receipt appearance (§11 — read-only)
 - Create/manage Admins and Staff
 - Enable/disable receipt types
 - Add custom fields per type
@@ -209,6 +210,8 @@ Full control of the company account.
 **Cannot:**
 
 - Change their own plan or limits
+- Change the company's own identity, logo, footer, watermark, header position or currency
+  (platform-managed — see §11)
 - Access other companies' data
 
 ### 7.3 Administrator (Company)
@@ -284,7 +287,10 @@ Staff issue receipts
 
 **Rules:**
 
+- There is **no public sign-up**. Companies exist only by the flow above; the platform
+  deliberately exposes no registration endpoint.
 - Abbreviation must be unique across the platform (2–10 alphanumeric uppercase).
+- Abbreviation is required — receipt numbers depend on it.
 - Owner email must be unique.
 - Plan code must exist and be active.
 - Per-company limits default from the plan but can be overridden by Super Admin.
@@ -353,11 +359,17 @@ Managed by Super Admin. Assigned to companies.
 
 Owner performs setup:
 
-**Step 1 — Company Information**
+**Step 1 — Company Information (managed by the Platform Administrator)**
+
+Company identity is **not** self-service. The Super Admin owns these fields and the company
+can only read them (§7.2, §46). This keeps every issued receipt consistent and prevents
+company details being changed by accident.
+
+Super Admin sets:
 
 - Company name
 - Abbreviation (2–10 alphanumeric uppercase) — used in receipt numbers
-- Logo (PNG/JPG/WEBP/SVG, ≤ 2 MB)
+- Logo (PNG/JPG/WEBP, ≤ 2 MB)
 - Address, Phone, Email, Website
 - TIN (optional)
 - CAC number (optional)
@@ -365,6 +377,10 @@ Owner performs setup:
 - Receipt footer message
 - Header position (`left` / `center` / `right`)
 - Use logo as watermark (yes/no)
+
+All of these are editable at any time from **Super Admin → Companies → Details**. Changing
+the abbreviation affects receipt numbers issued *after* the change; already-issued receipts
+keep the number they were given.
 
 **Step 2 — Receipt Types**
 Enable the types the company uses.
@@ -728,16 +744,29 @@ total = subtotal - discount_amount
 
 ## 24. RECEIPT NUMBERING
 
-**Format:** `ABBR-YYYY-NNNNN`
+**Format:** `ABBR-TYPECODE-YYYY-NNNNN`
+
+Example: `IDK-SCHOOLFE-2026-00001`
+
+**Segments:**
+
+- `ABBR` — from `companies.abbreviation` (required; set by the Super Admin)
+- `TYPECODE` — short code of the receipt type, uppercased, alphanumeric, max 8 characters
+- `YYYY` — year of issuance
+- `NNNNN` — per-type counter, zero-padded
 
 **Rules:**
 
 - Abbreviation from `companies.abbreviation`
 - Year = year of issuance
 - Sequence resets every Jan 1
-- Per company, per year, **per receipt type**
+- Per company, per year, **per receipt type** — the type code keeps the segments unambiguous
 - Never reused
 - Generated atomically inside transaction
+
+> **Implementation note:** `utils/receiptNumber.js` falls back to `RCPT` when a company has no
+> abbreviation. Since every company is now created with an abbreviation by the Super Admin,
+> that fallback exists only as a guard against direct database edits.
 
 **Implementation:**
 
@@ -1456,7 +1485,6 @@ receipt_system/
     └── js/
         ├── api.js
         ├── auth.js
-        ├── settings.js
         ├── items.js
         ├── receipt-types.js
         ├── templates.js
@@ -1483,24 +1511,35 @@ receipt_system/
 
 ### Super Admin
 
-| Method | Route                                            | Purpose                |
-| ------ | ------------------------------------------------ | ---------------------- |
-| GET    | `/superadmin/plans`                              | List plans             |
-| GET    | `/superadmin/companies`                          | List companies         |
-| POST   | `/superadmin/companies`                          | Create company + Owner |
-| PUT    | `/superadmin/companies/:id/plan`                 | Change plan            |
-| PUT    | `/superadmin/companies/:id/status`               | Enable/disable         |
-| PUT    | `/superadmin/companies/:id/limits`               | Set limits             |
-| POST   | `/superadmin/companies/:id/reset-owner-password` | Reset password         |
+| Method | Route                                            | Purpose                     |
+| ------ | ------------------------------------------------ | --------------------------- |
+| GET    | `/superadmin/plans`                              | List plans                  |
+| GET    | `/superadmin/companies`                          | List companies              |
+| POST   | `/superadmin/companies`                          | Create company + Owner      |
+| GET    | `/superadmin/companies/:id`                      | Read full company record    |
+| PUT    | `/superadmin/companies/:id/settings`             | Update identity / branding  |
+| POST   | `/superadmin/companies/:id/logo`                 | Upload logo                 |
+| GET    | `/superadmin/companies/:id/logo`                 | Preview logo                |
+| DELETE | `/superadmin/companies/:id/logo`                 | Remove logo                 |
+| PUT    | `/superadmin/companies/:id/plan`                 | Change plan                 |
+| PUT    | `/superadmin/companies/:id/status`               | Enable/disable              |
+| PUT    | `/superadmin/companies/:id/limits`               | Set limits                  |
+| POST   | `/superadmin/companies/:id/reset-owner-password` | Reset password              |
+
+`PUT /superadmin/companies/:id/settings` accepts: `name`, `abbreviation`, `email`, `phone`,
+`website`, `tin`, `cac_number`, `address`, `default_currency`, `receipt_footer`,
+`header_position`, `use_logo_watermark`. Unknown keys are ignored, and the change is written
+to `audit_logs` as `company.identity_updated` with old and new values.
 
 ### Company
 
-| Method | Route              | Purpose        |
-| ------ | ------------------ | -------------- |
-| GET    | `/company/me`      | Read company   |
-| PUT    | `/company/me`      | Update company |
-| POST   | `/company/me/logo` | Upload logo    |
-| DELETE | `/company/me/logo` | Remove logo    |
+| Method | Route                  | Purpose                              |
+| ------ | ---------------------- | ------------------------------------ |
+| GET    | `/company/settings`    | Read company + branding (read-only)  |
+| GET    | `/company/logo`        | Company logo image                   |
+
+> Company identity is **read-only** for company users. There is no `PUT /company/settings`
+> and no company-side logo upload — those are Super Admin operations (below).
 
 ### Categories
 
@@ -1692,6 +1731,22 @@ For every phase:
 | 11    | Polish + role-aware dashboard | (edits across files)                                                                                                                                                  |
 
 Each phase ends with a working, testable feature.
+
+### 52.1 Build status
+
+| Phase | Status | Notes |
+| ----- | ------ | ----- |
+| 1–7 | ✅ Built | Verified against a live database |
+| 4 | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only. |
+| 8 | ❌ Not built | No PDF (`pdfkit` is an unused dependency, no `/receipts/:id/pdf`). QR encodes a JSON payload, not a `/verify/{token}` URL. No public verify page. |
+| 9 | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist. |
+| 10 | ❌ Not built | `/users` is not mounted and `users.html` does not exist. |
+| 11 | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page. |
+| — | ❌ Not built | Customers (§18) — no route, no page. |
+
+**Open spec gaps for Phase 8:** the QR token (`receipts.verification_token`) is generated and
+stored but never used, because no verification route exists yet. §26 describes the intended
+`/verify/:token` behaviour.
 
 ---
 

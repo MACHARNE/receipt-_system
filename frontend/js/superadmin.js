@@ -8,6 +8,8 @@ let plans = [];
 let changePlanTarget = null;
 let editLimitsTarget = null;
 let resetPasswordTarget = null;
+let editCompanyTarget = null;   // company being edited (list row)
+let editCompanyDetail = null;   // full record returned by GET /superadmin/companies/:id
 
 // ---------- Element refs ----------
 const companiesBody = document.getElementById("companiesBody");
@@ -19,6 +21,7 @@ const newCompanyModal     = new bootstrap.Modal("#newCompanyModal");
 const changePlanModal     = new bootstrap.Modal("#changePlanModal");
 const editLimitsModal     = new bootstrap.Modal("#editLimitsModal");
 const resetPasswordModal  = new bootstrap.Modal("#resetPasswordModal");
+const editCompanyModal    = new bootstrap.Modal("#editCompanyModal");
 
 // ---------- Helpers ----------
 function toast(message, type = "success") {
@@ -194,6 +197,9 @@ function renderCompanies() {
             <td>${statusBadge}</td>
             <td class="text-end">
               <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" data-action="edit"   data-id="${c.id}" title="Company details, logo and branding">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
                 <button class="btn btn-outline-secondary" data-action="plan"   data-id="${c.id}" title="Change plan">
                   <i class="bi bi-credit-card"></i>
                 </button>
@@ -344,6 +350,16 @@ companiesBody.addEventListener("click", async (e) => {
     const company = companies.find(c => c.id === id);
     if (!company) return;
 
+    if (action === "edit") {
+        editCompanyTarget = company;
+        editCompanyDetail = null;
+        clearAlert("editCompanyAlert");
+        document.getElementById("ecLogo").value = "";
+        // Show the modal straight away, then fill in the full record.
+        editCompanyModal.show();
+        await loadCompanyDetail(company.id);
+    }
+
     if (action === "plan") {
         changePlanTarget = company;
         document.getElementById("cpCompanyName").textContent = company.name;
@@ -490,6 +506,126 @@ document.getElementById("resetPasswordForm").addEventListener("submit", async (e
     } finally {
         btn.disabled = false;
         btn.textContent = orig;
+    }
+});
+
+// ============================================================
+// COMPANY DETAILS EDITOR
+// ============================================================
+async function loadCompanyDetail(id) {
+    try {
+        const { company: detail } = await api.get(`/superadmin/companies/${id}`);
+        editCompanyDetail = detail;
+        populateEditCompany(detail);
+    } catch (err) {
+        setAlert("editCompanyAlert", err.message || "Failed to load company details.");
+    }
+}
+
+function populateEditCompany(c) {
+    document.getElementById("ecName").value          = c.name || "";
+    document.getElementById("ecAbbreviation").value  = c.abbreviation || "";
+    document.getElementById("ecEmail").value         = c.email || "";
+    document.getElementById("ecPhone").value         = c.phone || "";
+    document.getElementById("ecWebsite").value       = c.website || "";
+    document.getElementById("ecTin").value           = c.tin || "";
+    document.getElementById("ecCac").value           = c.cac_number || "";
+    document.getElementById("ecAddress").value       = c.address || "";
+    document.getElementById("ecHeaderPosition").value = c.header_position || "left";
+    document.getElementById("ecCurrency").value      = c.default_currency || "NGN";
+    document.getElementById("ecFooter").value        = c.receipt_footer || "";
+    document.getElementById("ecWatermark").checked   = !!c.use_logo_watermark;
+    showLogoPreview(c.logo_path);
+}
+
+function showLogoPreview(logoPath) {
+    const img      = document.getElementById("ecLogoPreview");
+    const empty    = document.getElementById("ecLogoEmpty");
+    const removeBtn = document.getElementById("ecRemoveLogo");
+
+    if (logoPath && editCompanyTarget) {
+        img.src = `/superadmin/companies/${editCompanyTarget.id}/logo?t=${Date.now()}`;
+        img.classList.remove("d-none");
+        empty.classList.add("d-none");
+        removeBtn.classList.remove("d-none");
+    } else {
+        img.removeAttribute("src");
+        img.classList.add("d-none");
+        empty.classList.remove("d-none");
+        removeBtn.classList.add("d-none");
+    }
+}
+
+document.getElementById("editCompanyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!editCompanyTarget) return;
+    clearAlert("editCompanyAlert");
+
+    const payload = {
+        name:              document.getElementById("ecName").value.trim(),
+        abbreviation:      document.getElementById("ecAbbreviation").value.trim().toUpperCase(),
+        email:             document.getElementById("ecEmail").value.trim(),
+        phone:             document.getElementById("ecPhone").value.trim(),
+        website:           document.getElementById("ecWebsite").value.trim(),
+        tin:               document.getElementById("ecTin").value.trim(),
+        cac_number:        document.getElementById("ecCac").value.trim(),
+        address:           document.getElementById("ecAddress").value.trim(),
+        header_position:   document.getElementById("ecHeaderPosition").value,
+        default_currency:  document.getElementById("ecCurrency").value.trim().toUpperCase(),
+        receipt_footer:    document.getElementById("ecFooter").value.trim(),
+        use_logo_watermark: document.getElementById("ecWatermark").checked,
+    };
+
+    if (!payload.name) {
+        setAlert("editCompanyAlert", "Company name is required.");
+        return;
+    }
+    if (!/^[A-Z0-9]{2,10}$/.test(payload.abbreviation)) {
+        setAlert("editCompanyAlert", "Abbreviation must be 2–10 letters or numbers, with no spaces.");
+        return;
+    }
+    if (payload.default_currency && !/^[A-Z]{3}$/.test(payload.default_currency)) {
+        setAlert("editCompanyAlert", "Currency must be a three-letter code, for example NGN.");
+        return;
+    }
+
+    const fileInput = document.getElementById("ecLogo");
+    const btn = document.getElementById("ecSubmitBtn");
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving…`;
+
+    try {
+        await api.put(`/superadmin/companies/${editCompanyTarget.id}/settings`, payload);
+
+        if (fileInput.files && fileInput.files[0]) {
+            const formData = new FormData();
+            formData.append("logo", fileInput.files[0]);
+            await api.post(`/superadmin/companies/${editCompanyTarget.id}/logo`, formData);
+        }
+
+        editCompanyModal.hide();
+        toast("Company details saved.", "success");
+        await loadCompanies();
+    } catch (err) {
+        setAlert("editCompanyAlert", err.message || "Failed to save company details.");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+});
+
+document.getElementById("ecRemoveLogo").addEventListener("click", async () => {
+    if (!editCompanyTarget) return;
+    if (!confirm("Remove this company's logo from future receipts?")) return;
+
+    try {
+        await api.del(`/superadmin/companies/${editCompanyTarget.id}/logo`);
+        document.getElementById("ecLogo").value = "";
+        showLogoPreview(null);
+        toast("Logo removed.", "success");
+    } catch (err) {
+        setAlert("editCompanyAlert", err.message || "Failed to remove the logo.");
     }
 });
 

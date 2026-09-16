@@ -5,6 +5,11 @@
 //   GET    /superadmin/plans
 //   GET    /superadmin/companies
 //   POST   /superadmin/companies           (create company + owner user)
+//   GET    /superadmin/companies/:id
+//   PUT    /superadmin/companies/:id/settings  (identity / branding)
+//   POST   /superadmin/companies/:id/logo
+//   GET    /superadmin/companies/:id/logo
+//   DELETE /superadmin/companies/:id/logo
 //   PUT    /superadmin/companies/:id/plan
 //   PUT    /superadmin/companies/:id/status
 //   PUT    /superadmin/companies/:id/limits
@@ -288,6 +293,213 @@ router.post("/companies/:id/logo", upload.single("logo"), async (req, res, next)
     } catch (err) {
         await fs.unlink(destination).catch(() => {});
         next(err);
+    }
+});
+
+// ------------------------------------------------------------
+// COMPANY IDENTITY (branding) — platform-managed
+// ------------------------------------------------------------
+// Companies cannot change their own identity (routes/company.js denies it).
+// That makes these endpoints the ONLY way the fields below can ever be set,
+// so they must cover every branding column used when rendering a receipt.
+// ------------------------------------------------------------
+const logoDirectory = path.join(__dirname, "..", "uploads", "logos");
+
+// Text columns a super admin may edit, with their maximum lengths.
+const IDENTITY_FIELDS = {
+    name: 150, abbreviation: 10, address: 2000, phone: 30, email: 120,
+    website: 150, tin: 50, cac_number: 50, receipt_footer: 2000,
+};
+
+function badRequest(res, message) {
+    return res.status(400).json({ message });
+}
+
+// GET /superadmin/companies/:id — full company record for the editor
+router.get("/companies/:id", async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1) return badRequest(res, "Invalid company id.");
+    try {
+        const { rows } = await pool.query(
+            `SELECT c.*, p.code AS plan_code, p.name AS plan_name,
+                    (SELECT email FROM users WHERE company_id = c.id AND role = 'owner' LIMIT 1) AS owner_email
+             FROM companies c
+             LEFT JOIN plans p ON p.id = c.plan_id
+             WHERE c.id = $1`,
+            [id]
+        );
+        if (!rows[0]) return res.status(404).json({ message: "Company not found." });
+        res.json({ company: rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Failed to load company." });
+    }
+});
+
+// PUT /superadmin/companies/:id/settings — update company identity / branding
+router.put("/companies/:id/settings", async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1) return badRequest(res, "Invalid company id.");
+
+    const body = req.body || {};
+    const values = [];
+    const assignments = [];
+
+    for (const [key, maxLength] of Object.entries(IDENTITY_FIELDS)) {
+        if (!Object.hasOwn(body, key)) continue;
+        if (typeof body[key] !== "string") return badRequest(res, `Invalid value for ${key}.`);
+        let value = body[key].trim();
+        if (value.length > maxLength) return badRequest(res, `${key} must be ${maxLength} characters or fewer.`);
+
+        if (key === "name") {
+            if (!value) return badRequest(res, "Company name is required.");
+        }
+        if (key === "abbreviation") {
+            value = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+            if (value.length < 2 || value.length > 10) {
+                return badRequest(res, "Abbreviation must be 2–10 letters or numbers, with no spaces.");
+            }
+        }
+        if (key === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            return badRequest(res, "Enter a valid company email address.");
+        }
+        if (key === "website" && value) {
+            try {
+                if (!["http:", "https:"].includes(new URL(value).protocol)) throw new Error();
+            } catch {
+                return badRequest(res, "Website must start with http:// or https://");
+            }
+        }
+        values.push(value || null);
+        assignments.push(`${key} = $${values.length}`);
+    }
+
+    if (Object.hasOwn(body, "default_currency")) {
+        const currency = String(body.default_currency || "").trim().toUpperCase();
+        if (!/^[A-Z]{3}$/.test(currency)) return badRequest(res, "Use a three-letter currency code, for example NGN.");
+        values.push(currency);
+        assignments.push(`default_currency = $${values.length}`);
+    }
+
+    if (Object.hasOwn(body, "header_position")) {
+        if (!["left", "center", "right"].includes(body.header_position)) {
+            return badRequest(res, "Header position must be left, center or right.");
+        }
+        values.push(body.header_position);
+        assignments.push(`header_position = $${values.length}`);
+    }
+
+    if (Object.hasOwn(body, "use_logo_watermark")) {
+        if (typeof body.use_logo_watermark !== "boolean") {
+            return badRequest(res, "Watermark must be true or false.");
+        }
+        values.push(body.use_logo_watermark);
+        assignments.push(`use_logo_watermark = $${values.length}`);
+    }
+
+    if (!assignments.length) return badRequest(res, "No changes were supplied.");
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        const before = await client.query("SELECT * FROM companies WHERE id = $1 FOR UPDATE", [id]);
+        if (!before.rows[0]) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Company not found." });
+        }
+
+        values.push(id);
+        const { rows } = await client.query(
+            `UPDATE companies SET ${assignments.join(", ")}, updated_at = NOW()
+             WHERE id = $${values.length} RETURNING *`,
+            values
+        );
+
+        await client.query(
+            `INSERT INTO audit_logs
+                (company_id, user_id, action, entity_type, entity_id, old_values, new_values, ip_address)
+             VALUES ($1, $2, 'company.identity_updated', 'company', $3, $4, $5, $6)`,
+            [
+                id,
+                req.session.userId,
+                id,
+                JSON.stringify(before.rows[0]),
+                JSON.stringify(rows[0]),
+                req.ip,
+            ]
+        );
+
+        await client.query("COMMIT");
+        res.json({ message: "Company details saved.", company: rows[0] });
+    } catch (err) {
+        await client.query("ROLLBACK");
+        if (err.code === "23505") {
+            return res.status(409).json({ message: "That abbreviation is already used by another company." });
+        }
+        console.error(err);
+        res.status(500).json({ message: "Failed to save company details." });
+    } finally {
+        client.release();
+    }
+});
+
+// GET /superadmin/companies/:id/logo — preview the current logo
+router.get("/companies/:id/logo", async (req, res, next) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1) return badRequest(res, "Invalid company id.");
+    try {
+        const { rows } = await pool.query("SELECT logo_path FROM companies WHERE id = $1", [id]);
+        if (!rows.length) return res.status(404).json({ message: "Company not found." });
+        const filename = rows[0].logo_path;
+        if (!filename || filename !== path.basename(filename)) {
+            return res.status(404).json({ message: "No logo uploaded." });
+        }
+        res.set("Cache-Control", "private, no-store");
+        res.set("X-Content-Type-Options", "nosniff");
+        res.sendFile(filename, { root: logoDirectory, dotfiles: "deny" }, err => { if (err) next(err); });
+    } catch (err) { next(err); }
+});
+
+// DELETE /superadmin/companies/:id/logo — remove the current logo
+router.delete("/companies/:id/logo", async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1) return badRequest(res, "Invalid company id.");
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const { rows } = await client.query("SELECT logo_path FROM companies WHERE id = $1 FOR UPDATE", [id]);
+        if (!rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Company not found." });
+        }
+        const previous = rows[0].logo_path;
+
+        // Nothing to remove: stay idempotent and keep the audit trail clean.
+        if (!previous) {
+            await client.query("COMMIT");
+            return res.json({ message: "This company has no logo to remove." });
+        }
+
+        await client.query("UPDATE companies SET logo_path = NULL, updated_at = NOW() WHERE id = $1", [id]);
+        await client.query(
+            `INSERT INTO audit_logs
+                (company_id, user_id, action, entity_type, entity_id, old_values, ip_address)
+             VALUES ($1, $2, 'company.logo_removed', 'company', $3, $4, $5)`,
+            [id, req.session.userId, id, JSON.stringify({ logo_path: previous }), req.ip]
+        );
+        await client.query("COMMIT");
+        // Best-effort file cleanup; the database is the source of truth.
+        if (previous === path.basename(previous)) {
+            await fs.unlink(path.join(logoDirectory, previous)).catch(() => {});
+        }
+        res.json({ message: "Logo removed." });
+    } catch (err) {
+        await client.query("ROLLBACK");
+        console.error(err);
+        res.status(500).json({ message: "Failed to remove the logo." });
+    } finally {
+        client.release();
     }
 });
 

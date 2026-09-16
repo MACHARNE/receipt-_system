@@ -31,6 +31,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ------------------------------------------------------------
+// TRUST PROXY
+// ------------------------------------------------------------
+// Behind Nginx/Caddy the real client address arrives in X-Forwarded-For, and
+// rate limiting keys on req.ip. Enable this ONLY when the app really is behind
+// a proxy: otherwise a client could spoof that header and sidestep the limits.
+if (process.env.TRUST_PROXY === "true") {
+    app.set("trust proxy", 1);
+}
+
+// ------------------------------------------------------------
 // GLOBAL MIDDLEWARE (runs on every request, in this order)
 // ------------------------------------------------------------
 

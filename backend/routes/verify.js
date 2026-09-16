@@ -20,11 +20,23 @@
 const express = require("express");
 const path = require("node:path");
 const pool = require("../db");
+const { rateLimit } = require("../middleware/rateLimit");
 
 const router = express.Router();
 
 const VERIFY_PAGE = path.join(__dirname, "..", "..", "frontend", "verify.html");
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// Public and unauthenticated, so it is worth protecting from being used as a
+// free database-query endpoint. A genuine scan happens a handful of times, so
+// the limit is far above real use; the page route is left unguarded because it
+// serves a static file and touches no data.
+const verifyGuard = rateLimit({
+    name: "verify",
+    windowMs: 10 * 60 * 1000,
+    max: 100,
+    message: "Too many verification requests. Please wait a few minutes and try again.",
+});
 
 // ============================================================
 // GET /verify/:token — the page a QR code opens
@@ -40,7 +52,7 @@ router.get("/:token", (req, res, next) => {
 // ============================================================
 // GET /verify/:token/data — the verification result
 // ============================================================
-router.get("/:token/data", async (req, res) => {
+router.get("/:token/data", verifyGuard, async (req, res) => {
     const token = String(req.params.token || "").trim().toLowerCase();
 
     // Reject non-UUID shapes before touching the database.

@@ -2,7 +2,7 @@
 
 ## Multi-Purpose Receipt, Invoice & Payment Management System
 
-**Version:** 3.3 — Complete Consolidated Edition
+**Version:** 3.4 — Complete Consolidated Edition
 **Status:** Approved Baseline — Source of Truth for Development, Teaching, and Deployment
 **Document Owner:** Product & Engineering
 **Audience:** Product team, engineering team, students, QA, stakeholders
@@ -20,7 +20,7 @@
 | 2.0     | Superseded  | Consolidated with built codebase                                                                    |
 | 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                |
 | 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1) |
-| **3.3** | **Current** | **Phase 8 built: PDF generation, QR codes point at the verification page, public /verify/:token page (§26, §28, §46, §52.1)** |
+| **3.4** | **Current** | **Rate limiting added to sign-in and public verification (§35, §40, §47, §52.1)**                   |
 
 ---
 
@@ -1062,7 +1062,8 @@ Receipts:         126
 9. bcrypt password hashing (cost 10). Passwords are generated server-side via
    `crypto.randomInt` (CSPRNG, no modulo bias); plaintext passwords are never stored,
    logged, or written to the audit trail.
-10. Rate limiting on auth and public verify endpoints.
+10. Rate limiting on auth and public verify endpoints. Implemented in
+    `middleware/rateLimit.js` — see §35.1.
 11. File uploads validated (type, size), stored outside web root or served with strict headers.
 12. Audit logging for all financial actions.
 
@@ -1072,6 +1073,36 @@ Receipts:         126
 - Environment variables via `.env`
 - No secrets in code
 - CSRF: `sameSite=lax` cookie plus JSON-only mutation endpoints
+
+### 35.1 Rate Limiting
+
+Implemented in `middleware/rateLimit.js`, with no external dependency.
+
+| Scope       | Endpoint                  | Limit                 | Key              | Counts             |
+| ----------- | ------------------------- | --------------------- | ---------------- | ------------------ |
+| Per network | `POST /auth/login`        | 50 requests / 15 min  | `req.ip`         | every request      |
+| Per account | `POST /auth/login`        | 10 failures / 15 min  | `req.ip` + email | only 401, 402, 403 |
+| Per network | `GET /verify/:token/data` | 100 requests / 10 min | `req.ip`         | every request      |
+
+**Design decisions:**
+
+- Only **failed** sign-ins count towards the account limit, so a legitimate user who signs in
+  and out repeatedly is never locked out.
+- The account limit is keyed by IP **and** email, so one person's failed attempts cannot lock
+  out colleagues sharing an office or school network.
+- Exceeding a limit returns `429` with a plain-language message and a `Retry-After` header. The
+  sign-in page displays that message directly.
+- `GET /verify/:token` (the page) is not limited: it serves a static file and reads no data.
+
+**Known limitations, accepted for Version 1:**
+
+- State is per process and held in memory. A restart clears the counters, and a horizontally
+  scaled deployment would need a shared store such as Redis.
+- The window is fixed rather than sliding, so a burst straddling a boundary can briefly reach
+  twice the limit. That is harmless for brute-force protection.
+- Behind a reverse proxy every client appears as the proxy's address unless
+  `TRUST_PROXY=true` is set (§47). It is off by default: trusting `X-Forwarded-For` with no
+  proxy in front would let a client spoof its own address and sidestep the limits.
 
 ---
 
@@ -1156,17 +1187,18 @@ Always show:
 
 **HTTP status codes:**
 
-| Code | Meaning          | When                      |
-| ---- | ---------------- | ------------------------- |
-| 200  | OK               | Successful GET/PUT/DELETE |
-| 201  | Created          | Successful POST           |
-| 400  | Bad Request      | Missing/invalid input     |
-| 401  | Unauthorized     | Not logged in             |
-| 402  | Payment Required | Plan expired              |
-| 403  | Forbidden        | Role/limit failure        |
-| 404  | Not Found        | Resource missing          |
-| 409  | Conflict         | Duplicate                 |
-| 500  | Server Error     | Unexpected                |
+| Code | Meaning           | When                      |
+| ---- | ----------------- | ------------------------- |
+| 200  | OK                | Successful GET/PUT/DELETE |
+| 201  | Created           | Successful POST           |
+| 400  | Bad Request       | Missing/invalid input     |
+| 401  | Unauthorized      | Not logged in             |
+| 402  | Payment Required  | Plan expired              |
+| 403  | Forbidden         | Role/limit failure        |
+| 404  | Not Found         | Resource missing          |
+| 409  | Conflict          | Duplicate                 |
+| 429  | Too Many Requests | Rate limit exceeded       |
+| 500  | Server Error      | Unexpected                |
 
 **PostgreSQL error codes handled:**
 
@@ -1654,10 +1686,10 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 
 ### Verify
 
-| Method | Route                  | Purpose                                      |
-| ------ | ---------------------- | -------------------------------------------- |
-| GET    | `/verify/:token`       | Public verification page (HTML)              |
-| GET    | `/verify/:token/data`  | Verification result (JSON) the page renders  |
+| Method | Route                 | Purpose                                     |
+| ------ | --------------------- | ------------------------------------------- |
+| GET    | `/verify/:token`      | Public verification page (HTML)             |
+| GET    | `/verify/:token/data` | Verification result (JSON) the page renders |
 
 Both routes are **public** — they are deliberately not behind the session guard, because the
 person scanning a receipt QR code is a customer, auditor or stranger. The data route returns
@@ -1676,6 +1708,7 @@ returned with `verified: false` and an explanatory message.
 3. Create DB: `CREATE DATABASE receipt_system;`
 4. Run `schema.sql`.
 5. Create `.env`:
+
    ```
    PORT=3000
    NODE_ENV=development
@@ -1687,11 +1720,18 @@ returned with `verified: false` and an explanatory message.
    SESSION_SECRET=<32+ chars>
    UPLOAD_DIR=uploads
    PUBLIC_BASE_URL=http://localhost:3000
+   TRUST_PROXY=false
    ```
 
    `PUBLIC_BASE_URL` is the address printed into receipt QR codes. Leave it out during local
    development and the incoming request's host is used; **set it in production**, otherwise a
    scanned code would point at whatever `Host` header the request happened to carry.
+
+   `TRUST_PROXY` must be `true` when the app runs behind Nginx/Caddy, otherwise every request
+   appears to come from the proxy and rate limiting (§35.1) treats the whole internet as one
+   client. Leave it `false` when the app is exposed directly: trusting `X-Forwarded-For` with no
+   proxy in front would let a caller spoof its own address.
+
 6. `npm install`.
 7. `node mikeadmin.js` — verify.
 8. `node server.js` — start.
@@ -1749,7 +1789,7 @@ For every phase:
 - [ ] DB credentials in environment, not code
 - [ ] Migrations applied
 - [ ] Super Admin password changed
-- [ ] Rate limiting enabled
+- [ ] Rate limiting enabled (see §35.1) — and `TRUST_PROXY=true` set if behind a reverse proxy
 - [ ] Uploads folder writable
 - [ ] Backup cron scheduled
 - [ ] Error logging to file or service
@@ -1807,22 +1847,22 @@ Each phase ends with a working, testable feature.
 
 ### 52.1 Build status
 
-| Phase | Status       | Notes                                                                                                                                             |
-| ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1–7   | ✅ Built     | Verified against a live database                                                                                                                  |
-| 4     | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only.                               |
+| Phase | Status       | Notes                                                                                                                                                                                          |
+| ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–7   | ✅ Built     | Verified against a live database                                                                                                                                                               |
+| 4     | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only.                                                                            |
 | 8     | ✅ Built     | PDF via `utils/pdf.js` (`GET /receipts/:id/pdf`), QR codes carry the `/verify/:token` URL, public verification page. Contrast-safe theme colours and the optional logo watermark are honoured. |
-| 9     | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist.                                                                                      |
-| 10    | ❌ Not built | `/users` is not mounted and `users.html` does not exist.                                                                                          |
-| 11    | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page.                                                                                 |
-| —     | ❌ Not built | Customers (§18) — no route, no page.                                                                                                              |
+| 9     | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist.                                                                                                                                   |
+| 10    | ❌ Not built | `/users` is not mounted and `users.html` does not exist.                                                                                                                                       |
+| 11    | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page.                                                                                                                              |
+| —     | ❌ Not built | Customers (§18) — no route, no page.                                                                                                                                                           |
 
 **Still open after Phase 8:**
 
-- Rate limiting is not implemented. §35 lists it for the auth and public verify endpoints;
-  `POST /auth/login` and `GET /verify/:token/data` are currently unprotected.
 - `PUBLIC_BASE_URL` should be set in production (§47) so QR links do not depend on the
   incoming `Host` header.
+- Rate limiting lives in process memory (§35.1): restarting the server clears it, and it does
+  not protect a horizontally scaled deployment.
 
 ---
 

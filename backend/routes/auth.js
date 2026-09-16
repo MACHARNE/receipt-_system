@@ -11,12 +11,38 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const pool = require("../db");
 const { requireLogin } = require("../middleware/auth");
+const { rateLimit } = require("../middleware/rateLimit");
 const router = express.Router();
+
+// ------------------------------------------------------------
+// Brute-force protection for sign-in (§35)
+// ------------------------------------------------------------
+// Two layers, because they defend against different things:
+//   - per network: stops one machine hammering the endpoint with many accounts
+//   - per account: stops guessing one person's password, and is scoped so that
+//     one user's failures cannot lock out colleagues who share an office IP.
+// Only failed sign-ins count towards the account limit, so a legitimate user
+// signing in and out repeatedly is never locked out.
+const loginFloodGuard = rateLimit({
+    name: "login-ip",
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    message: "Too many sign-in attempts from this network. Please wait a few minutes and try again.",
+});
+
+const loginAccountGuard = rateLimit({
+    name: "login-account",
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    by: req => String(req.body?.email || "").trim().toLowerCase().slice(0, 150),
+    countStatuses: [401, 403, 402],
+    message: "Too many failed sign-in attempts for this account. Please wait 15 minutes and try again.",
+});
 
 // ------------------------------------------------------------
 // POST /auth/login
 // ------------------------------------------------------------
-router.post("/login", async (req, res) => {
+router.post("/login", loginFloodGuard, loginAccountGuard, async (req, res) => {
     try {
         const { email, password } = req.body;
 

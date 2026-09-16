@@ -651,9 +651,8 @@ INSERT INTO receipt_type_fields (receipt_type_id, field_key, field_label, field_
 SELECT id, 'student_name',     'Student Name',       'text',   TRUE,  NULL::jsonb, 1 FROM receipt_types WHERE code='school_fees'
 UNION ALL SELECT id, 'student_id',      'Student ID',         'text',   TRUE,  NULL::jsonb, 2 FROM receipt_types WHERE code='school_fees'
 UNION ALL SELECT id, 'class',           'Class',              'text',   TRUE,  NULL::jsonb, 3 FROM receipt_types WHERE code='school_fees'
-UNION ALL SELECT id, 'term',            'Term',               'select', TRUE,  '["First Term", "Second Term", "Third Term"]'::jsonb, 4 FROM receipt_types WHERE code='school_fees'
-UNION ALL SELECT id, 'academic_session','Academic Session',   'text',   TRUE,  NULL::jsonb, 5 FROM receipt_types WHERE code='school_fees'
-UNION ALL SELECT id, 'fee_category',    'Fee Category',       'text',   FALSE, NULL::jsonb, 6 FROM receipt_types WHERE code='school_fees';
+UNION ALL SELECT id, 'academic_session','Academic Session',   'text',   TRUE,  NULL::jsonb, 4 FROM receipt_types WHERE code='school_fees'
+UNION ALL SELECT id, 'fee_category',    'Fee Category',       'text',   FALSE, NULL::jsonb, 5 FROM receipt_types WHERE code='school_fees';
 
 -- Sales
 INSERT INTO receipt_type_fields (receipt_type_id, field_key, field_label, field_type, is_required, display_order)

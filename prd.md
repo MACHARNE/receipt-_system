@@ -443,7 +443,7 @@ Each receipt type has its own master field set. Rendered dynamically when that t
 
 | Type            | Fields                                                                          |
 | --------------- | ------------------------------------------------------------------------------- |
-| School Fees     | student_name, student_id, class, term, academic_session, fee_category           |
+| School Fees     | student_name, student_id, class, academic_session, fee_category                 |
 | Sales           | customer_name, customer_phone, salesperson                                      |
 | Rent            | tenant_name, property, property_address, rental_period_start, rental_period_end |
 | Training        | participant_name, programme, cohort, training_period                            |

@@ -24,6 +24,7 @@ const { randomUUID } = require("node:crypto");
 const pool = require("../db");
 const { requireSuperAdmin } = require("../middleware/auth");
 const upload = require("../middleware/upload");
+const { generatePassword } = require("../utils/password");
 
 const router = express.Router();
 
@@ -87,7 +88,7 @@ router.post("/companies", async (req, res) => {
             maxReceiptItems,    // optional override
             ownerFullName,
             ownerEmail,
-            ownerPassword,
+            ownerPassword,      // optional — a strong one is generated when omitted
             companyEmail,       // optional
             companyPhone,       // optional
         } = req.body;
@@ -99,7 +100,6 @@ router.post("/companies", async (req, res) => {
         if (!planCode)        missing.push("planCode");
         if (!ownerFullName)   missing.push("ownerFullName");
         if (!ownerEmail)      missing.push("ownerEmail");
-        if (!ownerPassword)   missing.push("ownerPassword");
         if (missing.length) {
             return res.status(400).json({
                 message: `Missing required fields: ${missing.join(", ")}`,
@@ -108,9 +108,18 @@ router.post("/companies", async (req, res) => {
             });
         }
 
-        if (ownerPassword.length < 6) {
+        // ---- Owner password: use the admin's, or generate a strong one ----
+        // A generated password is returned exactly once, in the response body,
+        // so the Super Admin can hand it to the owner. It is never logged and
+        // never written to the audit trail.
+        let ownerSecret = typeof ownerPassword === "string" ? ownerPassword : "";
+        const passwordGenerated = ownerSecret.length === 0;
+
+        if (passwordGenerated) {
+            ownerSecret = generatePassword();
+        } else if (ownerSecret.length < 8 || Buffer.byteLength(ownerSecret) > 72) {
             return res.status(400).json({
-                message: "Owner password must be at least 6 characters.",
+                message: "A password you type in must be at least 8 characters (maximum 72 bytes), or leave it blank to generate a secure one.",
                 code: "WEAK_PASSWORD",
             });
         }
@@ -200,7 +209,7 @@ router.post("/companies", async (req, res) => {
         const company = companyRes.rows[0];
 
         // Insert owner user
-        const hash = await bcrypt.hash(ownerPassword, 10);
+        const hash = await bcrypt.hash(ownerSecret, 10);
         const ownerRes = await client.query(
             `INSERT INTO users
                 (company_id, full_name, email, password_hash, role, is_active)
@@ -253,6 +262,10 @@ router.post("/companies", async (req, res) => {
                 id: owner.id,
                 fullName: owner.full_name,
                 email: owner.email,
+                // Returned once so it can be handed over. Absent when the admin
+                // supplied their own password, since the server never sees it again.
+                password: passwordGenerated ? ownerSecret : undefined,
+                passwordGenerated,
             },
             limits: {
                 maxProducts: finalMaxProducts,
@@ -659,11 +672,21 @@ router.put("/companies/:id/limits", async (req, res) => {
 router.post("/companies/:id/reset-owner-password", async (req, res) => {
     try {
         const companyId = parseInt(req.params.id, 10);
+        if (!Number.isInteger(companyId) || companyId < 1) {
+            return res.status(400).json({ message: "Invalid company id." });
+        }
+
         const { newPassword } = req.body;
 
-        if (!newPassword || newPassword.length < 6) {
+        // Same rule as company creation: blank means "generate a strong one".
+        let secret = typeof newPassword === "string" ? newPassword : "";
+        const passwordGenerated = secret.length === 0;
+
+        if (passwordGenerated) {
+            secret = generatePassword();
+        } else if (secret.length < 8 || Buffer.byteLength(secret) > 72) {
             return res.status(400).json({
-                message: "New password must be at least 6 characters.",
+                message: "A password you type in must be at least 8 characters (maximum 72 bytes), or leave it blank to generate a secure one.",
             });
         }
 
@@ -676,7 +699,7 @@ router.post("/companies/:id/reset-owner-password", async (req, res) => {
             return res.status(404).json({ message: "Owner not found for this company." });
         }
 
-        const hash = await bcrypt.hash(newPassword, 10);
+        const hash = await bcrypt.hash(secret, 10);
 
         await pool.query(
             "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2",
@@ -690,7 +713,14 @@ router.post("/companies/:id/reset-owner-password", async (req, res) => {
             [companyId, req.session.userId, owner.rows[0].id, req.ip]
         );
 
-        res.json({ message: "Owner password reset." });
+        res.json({
+            message: passwordGenerated
+                ? "A new password has been generated for the owner."
+                : "Owner password updated.",
+            // Returned once, never logged.
+            password: passwordGenerated ? secret : undefined,
+            passwordGenerated,
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to reset password." });

@@ -10,6 +10,7 @@ let editLimitsTarget = null;
 let resetPasswordTarget = null;
 let editCompanyTarget = null;   // company being edited (list row)
 let editCompanyDetail = null;   // full record returned by GET /superadmin/companies/:id
+let abbrTouched = false;        // true once the admin types their own abbreviation
 
 // ---------- Element refs ----------
 const companiesBody = document.getElementById("companiesBody");
@@ -22,6 +23,7 @@ const changePlanModal     = new bootstrap.Modal("#changePlanModal");
 const editLimitsModal     = new bootstrap.Modal("#editLimitsModal");
 const resetPasswordModal  = new bootstrap.Modal("#resetPasswordModal");
 const editCompanyModal    = new bootstrap.Modal("#editCompanyModal");
+const credentialsModal    = new bootstrap.Modal("#credentialsModal");
 
 // ---------- Helpers ----------
 function toast(message, type = "success") {
@@ -245,6 +247,8 @@ function isExpired(c) {
 // ============================================================
 document.getElementById("newCompanyBtn").addEventListener("click", () => {
     document.getElementById("newCompanyForm").reset();
+    // Fresh form: let the company name suggest the abbreviation again.
+    abbrTouched = false;
     clearAlert("newCompanyAlert");
     newCompanyModal.show();
 });
@@ -254,18 +258,24 @@ document.getElementById("ncAbbr").addEventListener("input", (e) => {
     e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 });
 
-// Suggest abbreviation from name
-document.getElementById("ncName").addEventListener("blur", (e) => {
-    const abbrInput = document.getElementById("ncAbbr");
-    if (abbrInput.value) return;
-    const name = e.target.value.trim();
-    if (!name) return;
-    const words = name.split(/\s+/).filter(Boolean);
-    let suggestion = words.length > 1
-        ? words.map(w => w[0]).join("")
-        : name.substring(0, 4);
-    suggestion = suggestion.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 6);
-    abbrInput.value = suggestion;
+// The abbreviation is suggested from the company name only until the admin
+// types their own. Previously the suggestion fired on blur, which could land
+// after the admin started typing and silently corrupt the value (for example
+// "ZUTC" + "ZZUIC"). It now follows the name live and yields on first edit.
+function suggestAbbreviation(name) {
+    const words = String(name).trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "";
+    const raw = words.length > 1 ? words.map(w => w[0]).join("") : words[0].substring(0, 4);
+    return raw.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 6);
+}
+
+document.getElementById("ncAbbr").addEventListener("input", () => {
+    abbrTouched = true;
+});
+
+document.getElementById("ncName").addEventListener("input", (e) => {
+    if (abbrTouched) return;
+    document.getElementById("ncAbbr").value = suggestAbbreviation(e.target.value);
 });
 
 // Toggle owner password visibility
@@ -291,6 +301,7 @@ document.getElementById("newCompanyForm").addEventListener("submit", async (e) =
         planCode:     document.getElementById("ncPlan").value,
         ownerFullName: document.getElementById("ncOwnerName").value.trim(),
         ownerEmail:    document.getElementById("ncOwnerEmail").value.trim(),
+        // Blank means "let the server generate a strong password".
         ownerPassword: document.getElementById("ncOwnerPassword").value,
     };
 
@@ -302,12 +313,13 @@ document.getElementById("newCompanyForm").addEventListener("submit", async (e) =
 
     // Client-side validation (server still validates)
     if (!payload.companyName || !payload.abbreviation || !payload.planCode ||
-        !payload.ownerFullName || !payload.ownerEmail || !payload.ownerPassword) {
+        !payload.ownerFullName || !payload.ownerEmail) {
         setAlert("newCompanyAlert", "Please fill in all required fields.");
         return;
     }
-    if (payload.ownerPassword.length < 6) {
-        setAlert("newCompanyAlert", "Owner password must be at least 6 characters.");
+    if (payload.ownerPassword && payload.ownerPassword.length < 8) {
+        setAlert("newCompanyAlert",
+            "A password you type in must be at least 8 characters, or leave it blank to generate a secure one.");
         return;
     }
 
@@ -330,6 +342,15 @@ document.getElementById("newCompanyForm").addEventListener("submit", async (e) =
         newCompanyModal.hide();
         toast(`Company "${data.company.name}" created.`, "success");
         await loadCompanies();
+
+        // When the server generated the password it is returned once, here.
+        if (data.owner && data.owner.password) {
+            showCredentials({
+                companyName: data.company.name,
+                email: data.owner.email,
+                password: data.owner.password,
+            });
+        }
     } catch (err) {
         setAlert("newCompanyAlert", err.message || "Failed to create company.");
     } finally {
@@ -487,8 +508,9 @@ document.getElementById("resetPasswordForm").addEventListener("submit", async (e
     clearAlert("resetPasswordAlert");
 
     const newPassword = document.getElementById("rpNewPassword").value;
-    if (!newPassword || newPassword.length < 6) {
-        setAlert("resetPasswordAlert", "Password must be at least 6 characters.");
+    if (newPassword && newPassword.length < 8) {
+        setAlert("resetPasswordAlert",
+            "A password you type in must be at least 8 characters, or leave it blank to generate a secure one.");
         return;
     }
 
@@ -498,9 +520,21 @@ document.getElementById("resetPasswordForm").addEventListener("submit", async (e
     btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Resetting…`;
 
     try {
-        await api.post(`/superadmin/companies/${resetPasswordTarget.id}/reset-owner-password`, { newPassword });
+        const data = await api.post(
+            `/superadmin/companies/${resetPasswordTarget.id}/reset-owner-password`,
+            newPassword ? { newPassword } : {});
+
         resetPasswordModal.hide();
-        toast("Owner password reset.", "success");
+
+        if (data.password) {
+            showCredentials({
+                companyName: resetPasswordTarget.name,
+                email: resetPasswordTarget.owner_email,
+                password: data.password,
+            });
+        } else {
+            toast("Owner password updated.", "success");
+        }
     } catch (err) {
         setAlert("resetPasswordAlert", err.message || "Failed to reset password.");
     } finally {
@@ -628,6 +662,63 @@ document.getElementById("ecRemoveLogo").addEventListener("click", async () => {
         setAlert("editCompanyAlert", err.message || "Failed to remove the logo.");
     }
 });
+
+// ============================================================
+// GENERATED CREDENTIALS
+// ============================================================
+function showCredentials({ companyName, email, password }) {
+    document.getElementById("credCompany").textContent = companyName || "—";
+    document.getElementById("credEmail").value = email || "";
+    document.getElementById("credPassword").value = password || "";
+    credentialsModal.show();
+}
+
+// navigator.clipboard needs a secure context, so keep a plain-http fallback.
+async function copyText(text, button) {
+    let copied = false;
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        }
+    } catch { copied = false; }
+
+    if (!copied) {
+        const scratch = document.createElement("textarea");
+        scratch.value = text;
+        scratch.setAttribute("readonly", "");
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.appendChild(scratch);
+        scratch.select();
+        try { copied = document.execCommand("copy"); } catch { copied = false; }
+        scratch.remove();
+    }
+
+    if (!copied) {
+        toast("Could not copy automatically — select the text and copy it manually.", "warning");
+        return;
+    }
+
+    const icon = button.querySelector("i");
+    if (!icon) return;
+    const original = icon.className;
+    icon.className = "bi bi-check2";
+    setTimeout(() => { icon.className = original; }, 1500);
+}
+
+document.getElementById("copyEmailBtn").addEventListener("click", (e) =>
+    copyText(document.getElementById("credEmail").value.trim(), e.currentTarget));
+
+document.getElementById("copyPasswordBtn").addEventListener("click", (e) =>
+    copyText(document.getElementById("credPassword").value, e.currentTarget));
+
+document.getElementById("copyBothBtn").addEventListener("click", (e) =>
+    copyText(
+        `Email: ${document.getElementById("credEmail").value.trim()}\n` +
+        `Password: ${document.getElementById("credPassword").value}`,
+        e.currentTarget));
 
 // ============================================================
 // REFRESH BUTTON

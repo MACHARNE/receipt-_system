@@ -182,14 +182,20 @@
               <input type="email" class="form-control" id="ncOwnerEmail" required>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Owner Password <span class="text-danger">*</span></label>
+              <label class="form-label" for="ncOwnerPassword">Owner Password</label>
               <div class="input-group">
-                <input type="password" class="form-control" id="ncOwnerPassword" minlength="6" required>
-                <button class="btn btn-outline-secondary" type="button" id="toggleOwnerPass">
+                <input type="password" class="form-control" id="ncOwnerPassword"
+                       minlength="8" autocomplete="new-password"
+                       placeholder="Leave blank to generate">
+                <button class="btn btn-outline-secondary" type="button" id="toggleOwnerPass"
+                        title="Show or hide the password">
                   <i class="bi bi-eye" id="toggleOwnerPassIcon"></i>
                 </button>
               </div>
-              <div class="form-text">Minimum 6 characters. Give this to the company owner.</div>
+              <div class="form-text">
+                Leave this blank and the system generates a strong password, shown once
+                so you can hand it to the owner.
+              </div>
             </div>
           </div>
 
@@ -280,14 +286,20 @@
           <div id="resetPasswordAlert" class="alert d-none" role="alert"></div>
           <p class="mb-2">Company: <strong id="rpCompanyName">—</strong></p>
           <p class="text-muted small mb-3" id="rpOwnerEmail">—</p>
-          <label class="form-label">New Password</label>
+          <label class="form-label" for="rpNewPassword">New Password</label>
           <div class="input-group">
-            <input type="password" class="form-control" id="rpNewPassword" minlength="6" required>
-            <button class="btn btn-outline-secondary" type="button" id="toggleRpPass">
+            <input type="password" class="form-control" id="rpNewPassword"
+                   minlength="8" autocomplete="new-password"
+                   placeholder="Leave blank to generate">
+            <button class="btn btn-outline-secondary" type="button" id="toggleRpPass"
+                    title="Show or hide the password">
               <i class="bi bi-eye" id="toggleRpPassIcon"></i>
             </button>
           </div>
-          <div class="form-text">Minimum 6 characters. Communicate this to the owner securely.</div>
+          <div class="form-text">
+            Leave this blank and the system generates a strong password, shown once so you
+            can pass it to the owner securely.
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -412,6 +424,50 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= OWNER SIGN-IN DETAILS MODAL ================= -->
+<div class="modal fade" id="credentialsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Owner Sign-in Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          This password is shown <strong>once</strong>. Copy it now and pass it to the owner —
+          it cannot be retrieved later.
+        </div>
+
+        <p class="mb-3">Company: <strong id="credCompany">—</strong></p>
+
+        <label class="form-label" for="credEmail">Email</label>
+        <div class="input-group mb-3">
+          <input type="text" class="form-control" id="credEmail" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyEmailBtn" title="Copy email">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+
+        <label class="form-label" for="credPassword">Password</label>
+        <div class="input-group">
+          <input type="text" class="form-control font-monospace" id="credPassword" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyPasswordBtn" title="Copy password">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+        <div class="form-text">Ask the owner to change this after their first sign-in.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="copyBothBtn">
+          <i class="bi bi-clipboard-check me-1"></i> Copy both
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+      </div>
     </div>
   </div>
 </div>

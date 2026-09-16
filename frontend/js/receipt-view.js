@@ -141,6 +141,10 @@ function render() {
     if (qr_code) qr.src = qr_code;
     else document.getElementById("qrBlock").classList.add("d-none");
 
+    // The PDF is served by the API, which sets Content-Disposition, so this is
+    // a plain link: the browser handles the download and sends the session cookie.
+    document.getElementById("pdfBtn").href = `/receipts/${receiptId}/pdf`;
+
     // Void button — only if allowed and not already void
     if (["owner","admin"].includes(currentUser?.role) && receipt.status !== "void") {
         const vb = document.getElementById("voidBtn");

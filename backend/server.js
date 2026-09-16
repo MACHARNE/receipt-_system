@@ -104,6 +104,9 @@ app.use("/categories", require("./routes/categories"));
 app.use("/items", require("./routes/items"));
 app.use("/receipt-config", require("./routes/receiptConfig"));
 app.use("/receipts", require("./routes/receipts"));
+// Public: reached by scanning a QR code on a printed receipt, so it must not
+// sit behind the session guard.
+app.use("/verify", require("./routes/verify"));
 // ...
 
 // ------------------------------------------------------------

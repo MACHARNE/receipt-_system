@@ -2,7 +2,7 @@
 
 ## Multi-Purpose Receipt, Invoice & Payment Management System
 
-**Version:** 3.2 — Complete Consolidated Edition
+**Version:** 3.3 — Complete Consolidated Edition
 **Status:** Approved Baseline — Source of Truth for Development, Teaching, and Deployment
 **Document Owner:** Product & Engineering
 **Audience:** Product team, engineering team, students, QA, stakeholders
@@ -11,16 +11,16 @@
 
 ## DOCUMENT CONTROL
 
-| Version | Date        | Change Summary                                                                                          |
-| ------- | ----------- | ------------------------------------------------------------------------------------------------------- |
-| 1.0     | Initial     | Product concept                                                                                         |
-| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                                  |
-| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                          |
-| 1.3     | Superseded  | Bulk import                                                                                             |
-| 2.0     | Superseded  | Consolidated with built codebase                                                                        |
-| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                    |
+| Version | Date        | Change Summary                                                                                      |
+| ------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| 1.0     | Initial     | Product concept                                                                                     |
+| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                              |
+| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                      |
+| 1.3     | Superseded  | Bulk import                                                                                         |
+| 2.0     | Superseded  | Consolidated with built codebase                                                                    |
+| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                |
 | 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1) |
-| **3.2** | **Current** | **Owner passwords are generated server-side and shown once (§8, §9, §46)** |
+| **3.3** | **Current** | **Phase 8 built: PDF generation, QR codes point at the verification page, public /verify/:token page (§26, §28, §46, §52.1)** |
 
 ---
 
@@ -837,6 +837,19 @@ Status:         PAID
 - Customer full contact
 - Line-item detail
 - Internal IDs
+- Notes, subtotal, discount or any internal record id
+- The verification token itself
+
+**Implementation:**
+
+- `utils/verifyUrl.js` builds the absolute link. It prefers `PUBLIC_BASE_URL` and falls back to
+  the request's host, so the code works unchanged on localhost and in production.
+- `utils/qr.js` holds the QR options, so the code on screen and the code printed in the PDF are
+  identical and scannable at the same physical size.
+- `GET /verify/:token` serves the page and `GET /verify/:token/data` serves the result.
+  Responses are sent with `Cache-Control: no-store` — a verification result must never be
+  cached by a proxy or browser.
+- An unknown or malformed token returns 404 and the page shows **Not Verified**.
 
 **Void handling:** Voided receipts show:
 
@@ -889,11 +902,27 @@ Server-generated PDF per receipt.
 - Optional signature area
 - Optional watermark
 
-**Theme-aware:** honors per-type color with contrast-safe text.
+**Theme-aware:** honors per-type color with contrast-safe text, using `utils/theme.js` — the
+same module the front end mirrors, so the PDF and the screen cannot disagree about contrast.
 
-**Delivery:** Direct download to user's device.
+**Delivery:** Direct download to user's device (`Content-Disposition: attachment`, filename is
+the receipt number). Served with `Cache-Control: no-store`.
 
-**Library:** PDFKit.
+**Library:** PDFKit (`backend/utils/pdf.js`).
+
+**Implementation notes:**
+
+- The document is built into a buffer and sent once complete, so a failure part-way through
+  returns a clean error instead of a truncated download.
+- Amounts are formatted exactly as on screen (grouped, two decimals, no symbol) and the
+  currency is stated once above the totals as `Amounts in {CODE}`. PDFKit's built-in fonts
+  cannot render symbols such as NGN's, and embedding a font for one glyph is not worth the
+  file size.
+- PDFKit embeds PNG and JPEG only, while logo uploads also accept WebP. A logo it cannot embed
+  is skipped rather than failing the receipt.
+- A voided receipt carries a red **VOIDED — THIS RECEIPT IS NO LONGER VALID** banner with the
+  reason, who voided it and when.
+- Long receipts paginate: extra pages repeat the item table header.
 
 ---
 
@@ -1347,12 +1376,16 @@ backend/
 │   ├── items.js
 │   ├── receiptConfig.js
 │   ├── receipts.js
+│   ├── verify.js          ← public QR verification (no session guard)
 │   ├── reports.js
 │   └── users.js
 └── utils/
     ├── theme.js
     ├── receiptNumber.js
     ├── password.js
+    ├── receiptData.js     ← shared loader for the JSON and PDF renderers
+    ├── verifyUrl.js       ← absolute /verify/<token> link
+    ├── qr.js              ← QR options shared by screen and PDF
     └── pdf.js
 ```
 
@@ -1470,11 +1503,15 @@ receipt_system/
 │   │   ├── items.js
 │   │   ├── receiptConfig.js
 │   │   ├── receipts.js
+│   │   ├── verify.js
 │   │   └── reports.js
 │   ├── utils/
 │   │   ├── theme.js
 │   │   ├── receiptNumber.js
 │   │   ├── password.js
+│   │   ├── receiptData.js
+│   │   ├── verifyUrl.js
+│   │   ├── qr.js
 │   │   └── pdf.js
 │   └── uploads/
 │       ├── logos/
@@ -1617,9 +1654,16 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 
 ### Verify
 
-| Method | Route            | Purpose             |
-| ------ | ---------------- | ------------------- |
-| GET    | `/verify/:token` | Public verification |
+| Method | Route                  | Purpose                                      |
+| ------ | ---------------------- | -------------------------------------------- |
+| GET    | `/verify/:token`       | Public verification page (HTML)              |
+| GET    | `/verify/:token/data`  | Verification result (JSON) the page renders  |
+
+Both routes are **public** — they are deliberately not behind the session guard, because the
+person scanning a receipt QR code is a customer, auditor or stranger. The data route returns
+only the company name, receipt number, date, amount paid and status; it never returns customer
+contact details, line items, internal IDs, notes or the token itself. A voided receipt is
+returned with `verified: false` and an explanatory message.
 
 ---
 
@@ -1641,7 +1685,13 @@ to `audit_logs` as `company.identity_updated` with old and new values.
    DB_PASSWORD=<password>
    DB_PORT=5432
    SESSION_SECRET=<32+ chars>
+   UPLOAD_DIR=uploads
+   PUBLIC_BASE_URL=http://localhost:3000
    ```
+
+   `PUBLIC_BASE_URL` is the address printed into receipt QR codes. Leave it out during local
+   development and the incoming request's host is used; **set it in production**, otherwise a
+   scanned code would point at whatever `Host` header the request happened to carry.
 6. `npm install`.
 7. `node mikeadmin.js` — verify.
 8. `node server.js` — start.
@@ -1761,15 +1811,18 @@ Each phase ends with a working, testable feature.
 | ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1–7   | ✅ Built     | Verified against a live database                                                                                                                  |
 | 4     | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only.                               |
-| 8     | ❌ Not built | No PDF (`pdfkit` is an unused dependency, no `/receipts/:id/pdf`). QR encodes a JSON payload, not a `/verify/{token}` URL. No public verify page. |
+| 8     | ✅ Built     | PDF via `utils/pdf.js` (`GET /receipts/:id/pdf`), QR codes carry the `/verify/:token` URL, public verification page. Contrast-safe theme colours and the optional logo watermark are honoured. |
 | 9     | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist.                                                                                      |
 | 10    | ❌ Not built | `/users` is not mounted and `users.html` does not exist.                                                                                          |
 | 11    | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page.                                                                                 |
 | —     | ❌ Not built | Customers (§18) — no route, no page.                                                                                                              |
 
-**Open spec gaps for Phase 8:** the QR token (`receipts.verification_token`) is generated and
-stored but never used, because no verification route exists yet. §26 describes the intended
-`/verify/:token` behaviour.
+**Still open after Phase 8:**
+
+- Rate limiting is not implemented. §35 lists it for the auth and public verify endpoints;
+  `POST /auth/login` and `GET /verify/:token/data` are currently unprotected.
+- `PUBLIC_BASE_URL` should be set in production (§47) so QR links do not depend on the
+  incoming `Host` header.
 
 ---
 

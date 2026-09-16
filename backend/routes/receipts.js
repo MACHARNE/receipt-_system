@@ -4,6 +4,7 @@
 // Endpoints:
 //   GET    /receipts                      — list with filters + pagination
 //   GET    /receipts/:id                  — full receipt (with items + field values)
+//   GET    /receipts/:id/pdf              — downloadable PDF
 //   POST   /receipts                      — create
 //   POST   /receipts/:id/void             — void with reason
 //   GET    /receipts/next-options         — types + templates + items for the form
@@ -12,9 +13,12 @@
 
 const express = require("express");
 const pool = require("../db");
-const QRCode = require("qrcode");
 const { requireCompanyUser, requireRole } = require("../middleware/auth");
 const { generateReceiptNumber } = require("../utils/receiptNumber");
+const { loadReceiptBundle } = require("../utils/receiptData");
+const { verifyUrlFor } = require("../utils/verifyUrl");
+const { qrDataUrl } = require("../utils/qr");
+const { buildReceiptPdf } = require("../utils/pdf");
 
 const router = express.Router();
 router.use(requireCompanyUser);
@@ -310,74 +314,66 @@ router.get("/:id", async (req, res) => {
     try {
         const companyId = req.session.companyId;
         const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id < 1) {
+            return res.status(400).json({ message: "Invalid receipt id." });
+        }
 
-        const receiptRes = await pool.query(
-            `SELECT r.*,
-                    rt.name AS type_name, rt.code AS type_code,
-                    u.full_name AS created_by_name,
-                    v.full_name AS voided_by_name
-             FROM receipts r
-             JOIN receipt_types rt ON rt.id = r.receipt_type_id
-             LEFT JOIN users u ON u.id = r.created_by
-             LEFT JOIN users v ON v.id = r.voided_by
-             WHERE r.id = $1 AND r.company_id = $2`,
-            [id, companyId]
-        );
-        if (receiptRes.rows.length === 0) {
+        const bundle = await loadReceiptBundle(companyId, id);
+        if (!bundle) {
             return res.status(404).json({ message: "Receipt not found." });
         }
 
-        const items = await pool.query(
-            `SELECT id, item_id, item_name, description, quantity, unit_price, line_total, display_order
-             FROM receipt_items WHERE receipt_id = $1 ORDER BY display_order ASC`,
-            [id]
-        );
-
-        const fieldValues = await pool.query(
-            `SELECT field_key, field_value FROM receipt_field_values WHERE receipt_id = $1`,
-            [id]
-        );
-        const fieldsMap = {};
-        fieldValues.rows.forEach(fv => { fieldsMap[fv.field_key] = fv.field_value; });
-
-        // Company info for the receipt header
-        const companyRes = await pool.query(
-            `SELECT name, abbreviation, logo_path, use_logo_watermark, address,
-                    phone, email, website, tin, cac_number, default_currency,
-                    receipt_footer, header_position
-             FROM companies WHERE id = $1`,
-            [companyId]
-        );
-
-        const themeRes = await pool.query(
-            `SELECT base_color FROM company_receipt_type_themes
-             WHERE company_id = $1 AND receipt_type_id = $2`,
-            [companyId, receiptRes.rows[0].receipt_type_id]
-        );
-
-        const receipt = receiptRes.rows[0];
+        // The QR code points at the public verification page, so anyone holding
+        // the receipt can confirm it without signing in.
+        const verifyUrl = verifyUrlFor(req, bundle.receipt.verification_token);
         let qrCode = null;
         try {
-            qrCode = await QRCode.toDataURL(JSON.stringify({
-                receipt_number: receipt.receipt_number,
-                total: receipt.total,
-                issued_at: receipt.created_at,
-            }), { width: 184, margin: 1 });
+            qrCode = await qrDataUrl(verifyUrl);
         } catch (qrError) {
             console.error("Failed to create receipt QR code:", qrError);
         }
 
-        res.json({
-            receipt,
-            items: items.rows,
-            field_values: fieldsMap,
-            company: companyRes.rows[0],
-            theme_base_color: themeRes.rows[0]?.base_color || null,
-            qr_code: qrCode,
-        });
+        res.json({ ...bundle, qr_code: qrCode, verify_url: verifyUrl });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Failed to load receipt." });
+    }
+});
+
+// ============================================================
+// GET /receipts/:id/pdf — downloadable PDF
+// ============================================================
+router.get("/:id/pdf", async (req, res) => {
+    try {
+        const companyId = req.session.companyId;
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id < 1) {
+            return res.status(400).json({ message: "Invalid receipt id." });
+        }
+
+        const bundle = await loadReceiptBundle(companyId, id);
+        if (!bundle) {
+            return res.status(404).json({ message: "Receipt not found." });
+        }
+
+        const verifyUrl = verifyUrlFor(req, bundle.receipt.verification_token);
+        const pdf = await buildReceiptPdf(bundle, { verifyUrl });
+
+        // Receipt numbers are generated by us, but strip anything unexpected so
+        // a crafted value can never break out of the header.
+        const safeName = String(bundle.receipt.receipt_number || "receipt").replace(/[^A-Za-z0-9._-]/g, "");
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Length": pdf.length,
+            "Content-Disposition": `attachment; filename="${safeName}.pdf"`,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        });
+        res.send(pdf);
+    } catch (err) {
+        console.error("Receipt PDF failed:", err);
+        res.status(500).json({ message: "Could not create a PDF for this receipt. Please try again." });
     }
 });
 

@@ -1,5 +1,11 @@
 @media print {
-    body { background: #fff !important; }
+    body {
+        background: #fff !important;
+        /* Keep the receipt's themed header colour instead of letting the
+           browser drop it to save ink. */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
     .d-print-none, nav, .navbar, .page-header, .btn { display: none !important; }
     .receipt-sheet {
         border: none !important;
@@ -11,5 +17,5 @@
     .receipt-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .receipt-totals { background: #fff !important; border: 1px solid #ccc; }
     a { color: inherit !important; text-decoration: none !important; }
-    @page { margin: 1cm; }
+    @page { size: A4; margin: 1cm; }
 }

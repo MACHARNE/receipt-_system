@@ -14,17 +14,106 @@
   <div class="d-flex align-items-center gap-3"><span class="nav-user" id="navUser">…</span><button class="btn btn-sm btn-outline-light" id="logoutBtn">Logout</button></div>
 </div></nav>
 <main class="container py-4">
-  <div class="page-header"><div><h4>Receipts</h4><div class="text-muted small">Create, issue, and find receipts for your business.</div></div><a class="btn btn-primary" href="/receipts.html"><i class="bi bi-receipt me-1"></i> Open receipts</a></div>
-  <div class="row g-3">
-    <div class="col-md-8"><div class="card h-100"><div class="card-body p-4"><div class="text-primary mb-2"><i class="bi bi-stars fs-4"></i></div><h5>Issue a receipt in a few guided steps</h5><p class="text-muted mb-4">Start from a saved template, add customer and payment details, then review the calculated total before issuing.</p><a class="btn btn-primary" href="/receipt-new.html"><i class="bi bi-plus-lg me-1"></i> Create a receipt</a><a class="btn btn-link" href="/receipts.html">View issued receipts</a></div></div></div>
-    <div class="col-md-4"><div class="card h-100"><div class="card-body"><h6 class="text-uppercase text-muted small">Business profile</h6><p class="small text-muted mb-0">Your company name, logo, email, and phone number are managed by the platform administrator to keep every receipt consistent.</p></div></div></div>
-    <div class="col-md-6"><div class="card h-100"><div class="card-body d-flex flex-column"><h6 class="text-uppercase text-muted small">Receipt setup</h6><p class="small text-muted">Owners and admins can manage the receipt types, fields, colours, and reusable templates used when issuing.</p><div class="mt-auto d-flex gap-2"><a href="/receipt-types.html" class="btn btn-sm btn-outline-primary">Receipt types</a><a href="/templates.html" class="btn btn-sm btn-outline-primary">Templates</a></div></div></div></div>
-    <div class="col-md-6"><div class="card h-100"><div class="card-body d-flex flex-column"><h6 class="text-uppercase text-muted small">Items & services</h6><p class="small text-muted">Keep your common products and services ready so their names and prices can be added quickly to each receipt.</p><a href="/items.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Manage items</a></div></div></div>
+  <div class="page-header">
+    <div><h4 id="greeting">Receipts</h4><div class="text-muted small" id="greetingSub">Create, issue, and find receipts for your business.</div></div>
+    <a class="btn btn-primary" href="/receipt-new.html"><i class="bi bi-plus-lg me-1"></i> Create a receipt</a>
+  </div>
+
+  <!-- Tools appear according to the role (§34). Anything hidden here is also
+       refused by the server, so hiding a link is convenience, not security. -->
+  <div class="row g-3" id="toolGrid">
+    <div class="col-md-6" data-roles="owner,admin,staff">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-receipt fs-4"></i></div>
+        <h6 class="mb-1">Receipts</h6>
+        <p class="small text-muted">Issue a receipt in four guided steps, then print it or download the PDF. Each one carries a QR code that verifies it.</p>
+        <div class="mt-auto d-flex gap-2 flex-wrap">
+          <a href="/receipt-new.html" class="btn btn-sm btn-primary">New receipt</a>
+          <a href="/receipts.html" class="btn btn-sm btn-outline-primary" id="receiptsLink">All receipts</a>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner,admin">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-people fs-4"></i></div>
+        <h6 class="mb-1">People</h6>
+        <p class="small text-muted">Students, tenants or clients. Upload a list once and their details fill in automatically when you issue a receipt.</p>
+        <a href="/customers.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Manage people</a>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner,admin">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-box-seam fs-4"></i></div>
+        <h6 class="mb-1">Items &amp; services</h6>
+        <p class="small text-muted">Keep your products and fees ready with their prices, so they can be added to a receipt in one click.</p>
+        <a href="/items.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Manage items</a>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner,admin">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-sliders fs-4"></i></div>
+        <h6 class="mb-1">Receipt setup</h6>
+        <p class="small text-muted">Turn receipt types on, decide which details each one asks for, and choose their colours.</p>
+        <div class="mt-auto d-flex gap-2 flex-wrap">
+          <a href="/receipt-types.html" class="btn btn-sm btn-outline-primary">Receipt types</a>
+          <a href="/templates.html" class="btn btn-sm btn-outline-primary">Templates</a>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner,admin">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-graph-up fs-4"></i></div>
+        <h6 class="mb-1">Reports</h6>
+        <p class="small text-muted">See what was collected, what is still owed, and which types and team members brought it in.</p>
+        <a href="/reports.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Open reports</a>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-person-badge fs-4"></i></div>
+        <h6 class="mb-1">Your team</h6>
+        <p class="small text-muted">Add administrators and cashiers, and control who can sign in. Staff issue receipts without seeing your reports.</p>
+        <a href="/users.html" class="btn btn-sm btn-outline-primary mt-auto align-self-start">Manage team</a>
+      </div></div>
+    </div>
+
+    <div class="col-md-6" data-roles="owner,admin,staff">
+      <div class="card h-100"><div class="card-body d-flex flex-column">
+        <div class="text-primary mb-2"><i class="bi bi-shop fs-4"></i></div>
+        <h6 class="mb-1">Business profile</h6>
+        <p class="small text-muted mb-0">What appears on every receipt: your name, logo, address and footer. Managed for you by the platform administrator.</p>
+        <a href="/settings.html" class="btn btn-sm btn-outline-secondary mt-auto align-self-start">View profile</a>
+      </div></div>
+    </div>
   </div>
 </main>
 <script src="./js/api.js"></script>
 <script>
-(async function () { try { const { user } = await api.get('/auth/me'); if (user.role === 'super_admin') return location.href = '/superadmin-dashboard.html'; document.getElementById('navUser').textContent = user.full_name || ''; } catch { location.href = '/index.html'; } })();
+(async function boot() {
+  try {
+    const { user } = await api.get('/auth/me');
+    if (user.role === 'super_admin') { location.href = '/superadmin-dashboard.html'; return; }
+    document.getElementById('navUser').textContent = user.full_name || '';
+
+    // Show only the tools this role can actually use.
+    const role = user.role;
+    document.querySelectorAll('#toolGrid [data-roles]').forEach(el => {
+      if (!el.dataset.roles.split(',').includes(role)) el.remove();
+    });
+
+    if (role === 'staff') {
+      document.getElementById('greeting').textContent = 'Issue receipts';
+      document.getElementById('greetingSub').textContent = 'Create a receipt, look someone up, and print or download it.';
+      document.getElementById('receiptsLink').textContent = 'My receipts';
+    }
+  } catch { location.href = '/index.html'; }
+})();
 document.getElementById('logoutBtn').addEventListener('click', async () => { try { await api.post('/auth/logout'); } finally { location.href = '/index.html'; } });
 </script>
 </body></html>
+

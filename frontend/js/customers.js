@@ -84,6 +84,12 @@ let currentUser = null;
             window.location.href = "/superadmin-dashboard.html";
             return;
         }
+        // §7.3/§7.4: the address book is maintained by owners and administrators.
+        // Staff still reach a person by searching while they issue a receipt.
+        if (currentUser.role !== "owner" && currentUser.role !== "admin") {
+            window.location.href = "/dashboard.html";
+            return;
+        }
         navUser.textContent = currentUser.full_name || "";
         await load();
     } catch {

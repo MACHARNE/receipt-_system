@@ -131,7 +131,10 @@ function profilesFromRow(row) {
 // ============================================================
 // GET /customers — list with search, filter, pagination
 // ============================================================
-router.get("/", async (req, res) => {
+// Browsing the address book is for the people who maintain it (§7.3). Staff
+// reach a person through /customers/search while issuing a receipt, which §7.4
+// allows them to do.
+router.get("/", requireRole("owner", "admin"), async (req, res) => {
     try {
         const companyId = req.session.companyId;
         const { q = "", type, status, page = 1, pageSize = 25 } = req.query;
@@ -228,7 +231,7 @@ router.get("/search", async (req, res) => {
 // ============================================================
 // GET /customers/:id
 // ============================================================
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireRole("owner", "admin"), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id) || id < 1) {

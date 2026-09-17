@@ -2,7 +2,7 @@
 
 ## Multi-Purpose Receipt, Invoice & Payment Management System
 
-**Version:** 3.5 — Complete Consolidated Edition
+**Version:** 3.6 — Complete Consolidated Edition
 **Status:** Approved Baseline — Source of Truth for Development, Teaching, and Deployment
 **Document Owner:** Product & Engineering
 **Audience:** Product team, engineering team, students, QA, stakeholders
@@ -11,16 +11,17 @@
 
 ## DOCUMENT CONTROL
 
-| Version | Date        | Change Summary                                                                                                                                                   |
-| ------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.0     | Initial     | Product concept                                                                                                                                                  |
-| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                                                                                           |
-| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                                                                                   |
-| 1.3     | Superseded  | Bulk import                                                                                                                                                      |
-| 2.0     | Superseded  | Consolidated with built codebase                                                                                                                                 |
-| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                                                                             |
-| 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1)                                                              |
-| **3.5** | **Current** | **People module with CSV import, receipt prefill and write-back, repeat-a-receipt, item default quantity, rebuilt settings page (§17, §18, §19, §20, §33, §46)** |
+| Version | Date        | Change Summary                                                                                                                                                     |
+| ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.0     | Initial     | Product concept                                                                                                                                                    |
+| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                                                                                             |
+| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                                                                                     |
+| 1.3     | Superseded  | Bulk import                                                                                                                                                        |
+| 2.0     | Superseded  | Consolidated with built codebase                                                                                                                                   |
+| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                                                                               |
+| 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1)                                                                |
+| **3.5** | Superseded  | People module with CSV import, receipt prefill and write-back, repeat-a-receipt, item default quantity, rebuilt settings page (§17, §18, §19, §20, §33, §46)       |
+| **3.6** | **Current** | **Collection reports with CSV export (§30), company team management (§13.4, §46), role-aware dashboards (§7), staff restricted from reports and the address book** |
 
 ---
 
@@ -1524,6 +1525,7 @@ frontend/
 ├── dashboard.html
 ├── settings.html
 ├── items.html
+├── customers.html
 ├── receipt-types.html
 ├── templates.html
 ├── receipts.html
@@ -1594,7 +1596,8 @@ receipt_system/
 │   │   ├── receiptConfig.js
 │   │   ├── receipts.js
 │   │   ├── verify.js
-│   │   └── reports.js
+│   │   ├── reports.js
+│   │   └── users.js
 │   ├── utils/
 │   │   ├── theme.js
 │   │   ├── receiptNumber.js
@@ -1709,6 +1712,10 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 | POST   | `/customers/import/validate` | Dry run (no writes)                  |
 | POST   | `/customers/import/commit`   | Insert valid rows in one transaction |
 
+`GET /customers`, `GET /customers/:id` and every route that writes are **owner and
+administrator only** (§7.3). `GET /customers/search` stays open to all company users
+because staff need it to look someone up while issuing a receipt (§7.4).
+
 ### Categories
 
 | Method | Route             | Purpose |
@@ -1760,6 +1767,52 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 | POST   | `/receipts`                     | Create                            |
 | POST   | `/receipts/:id/void`            | Void                              |
 | GET    | `/receipts/:id/pdf`             | Download PDF                      |
+
+### Reports
+
+| Method | Route                   | Purpose                                            |
+| ------ | ----------------------- | -------------------------------------------------- |
+| GET    | `/reports/summary`      | Totals, breakdowns and a daily series for a period |
+| GET    | `/reports/receipts.csv` | The same period as a spreadsheet                   |
+
+`from` and `to` are plain `YYYY-MM-DD` dates and both default to the current month.
+A malformed date, or a `from` after `to`, returns `400`.
+
+The whole router is **owner and administrator only** — §7.4 states staff cannot view
+reports. Both routes return the same figures, so the two never disagree.
+
+**How money is counted.** A receipt belongs to the day the payment was made
+(`payment_date`, falling back to the creation date), because that is when the money moved.
+A **voided** receipt is excluded from every money total — it collected nothing — but is
+counted separately as `voided` so the numbers are reconcilable and the record never
+vanishes from view.
+
+The CSV export begins with a UTF-8 byte-order mark so Excel reads it correctly, and any
+cell starting with `=`, `+`, `-` or `@` is prefixed with an apostrophe so a customer name
+cannot be executed as a formula (§38).
+
+### Team (company users)
+
+| Method | Route                       | Purpose                       |
+| ------ | --------------------------- | ----------------------------- |
+| GET    | `/users`                    | List the company's team       |
+| POST   | `/users`                    | Add a member                  |
+| PUT    | `/users/:id`                | Edit name, role, active state |
+| POST   | `/users/:id/reset-password` | Issue a new password          |
+
+Every route is **owner only** (§7.3) — an administrator cannot change who can sign in.
+
+- `role` must be `admin` or `staff`. `owner` is refused and `super_admin` can never be
+  issued here, so a company cannot escalate its own privileges.
+- `password` is optional, exactly as on the Super Admin side: omit it and a strong one is
+  generated and returned once with `passwordGenerated: true`; supply it and it must be
+  at least 8 characters (at most 72 bytes) and is never echoed back.
+- A duplicate email returns `409`.
+- The owner's own row is refused with `403` — it is managed by the platform administrator.
+- There is **no** `DELETE`. Members are referenced by receipts and audit entries, so
+  suspending (`is_active: false`) is the correct way to remove access.
+- Changes are written to `audit_logs` as `user.created`, `user.updated` and
+  `user.password_reset`.
 
 ### Verify
 
@@ -1924,22 +1977,29 @@ Each phase ends with a working, testable feature.
 
 ### 52.1 Build status
 
-| Phase | Status       | Notes                                                                                                                                                                                          |
-| ----- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1–7   | ✅ Built     | Verified against a live database                                                                                                                                                               |
-| 4     | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only.                                                                            |
-| 8     | ✅ Built     | PDF via `utils/pdf.js` (`GET /receipts/:id/pdf`), QR codes carry the `/verify/:token` URL, public verification page. Contrast-safe theme colours and the optional logo watermark are honoured. |
-| 9     | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist.                                                                                                                                   |
-| 10    | ❌ Not built | `/users` is not mounted and `users.html` does not exist.                                                                                                                                       |
-| 11    | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page.                                                                                                                              |
-| —     | ✅ Built     | Customers (§18) — now built with import, prefill and write-back (§18.1)                                                                                                                        |
+| Phase | Status       | Notes                                                                                                                                                                                                    |
+| ----- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1–7   | ✅ Built     | Verified against a live database                                                                                                                                                                         |
+| 4     | ⚠️ Re-scoped | Company identity is platform-managed (§11). `settings.js` was removed; the company-side page is informational only.                                                                                      |
+| 8     | ✅ Built     | PDF via `utils/pdf.js` (`GET /receipts/:id/pdf`), QR codes carry the `/verify/:token` URL, public verification page. Contrast-safe theme colours and the optional logo watermark are honoured.           |
+| 9     | ✅ Built     | `/reports/summary` and `/reports/receipts.csv`, owner/admin only. Voided receipts are excluded from money totals and reported separately; the CSV is BOM-prefixed and guarded against formula injection. |
+| 10    | ✅ Built     | `/users` — owner only. Generated passwords shown once, roles limited to admin/staff, the owner row protected, suspension instead of deletion.                                                            |
+| 11    | ✅ Built     | `dashboard.html` renders only the tools a role may use; reports and the address book send staff back to the dashboard.                                                                                   |
+| —     | ✅ Built     | Customers (§18) — with import, prefill and write-back (§18.1)                                                                                                                                            |
 
-**Still open after Phase 8:**
+**Not built:** invoices. The invoice module does not exist, so there is no invoice
+reporting; reports cover receipts only. This is consistent with §53.
+
+**Still open after Phase 11:**
 
 - `PUBLIC_BASE_URL` should be set in production (§47) so QR links do not depend on the
   incoming `Host` header.
 - Rate limiting lives in process memory (§35.1): restarting the server clears it, and it does
   not protect a horizontally scaled deployment.
+- The PDF uses PDFKit's built-in fonts, which cannot render the naira glyph, so amounts are
+  printed as plain numbers with the currency named once as text.
+- WebP logos are skipped by the PDF so it never fails to render; converting them on upload
+  would let them appear.
 
 ---
 

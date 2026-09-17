@@ -113,6 +113,8 @@ app.use("/company", require("./routes/company"));
 app.use("/categories", require("./routes/categories"));
 app.use("/items", require("./routes/items"));
 app.use("/customers", require("./routes/customers"));
+app.use("/reports", require("./routes/reports"));
+app.use("/users", require("./routes/users"));
 app.use("/receipt-config", require("./routes/receiptConfig"));
 app.use("/receipts", require("./routes/receipts"));
 // Public: reached by scanning a QR code on a printed receipt, so it must not

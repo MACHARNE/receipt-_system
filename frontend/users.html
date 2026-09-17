@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-dark app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand mb-0 h1" href="/dashboard.html">
+      <i class="bi bi-receipt-cutoff me-1"></i> Receipt System
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-user" id="navUser">…</span>
+      <button class="btn btn-sm btn-outline-light" id="logoutBtn">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= MAIN ================= -->
+<main class="container-fluid py-4 px-3 px-md-4">
+
+  <div class="page-header">
+    <div>
+      <h4>Team</h4>
+      <div class="text-muted small">The people who can sign in and issue receipts for your business.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+      <button class="btn btn-primary btn-sm" id="newUserBtn">
+        <i class="bi bi-person-plus me-1"></i> Add team member
+      </button>
+    </div>
+  </div>
+
+  <div id="pageAlert" class="alert d-none" role="alert"></div>
+
+  <!-- What the roles mean -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="section-title">What each role can do</div>
+      <div class="row g-3 small">
+        <div class="col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="fw-semibold mb-1"><i class="bi bi-person-badge text-primary me-1"></i> Owner</div>
+            <div class="text-muted">
+              You. Everything below, plus setting up receipt types, templates and the team itself.
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="fw-semibold mb-1"><i class="bi bi-shield-check text-primary me-1"></i> Administrator</div>
+            <div class="text-muted">
+              Day-to-day running: customers, items, templates, issuing receipts and viewing reports.
+              Cannot manage the team or change who can sign in.
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="border rounded p-3 h-100">
+            <div class="fw-semibold mb-1"><i class="bi bi-person-badge-fill text-primary me-1"></i> Staff / Cashier</div>
+            <div class="text-muted">
+              Issues receipts, looks up customers, prints and downloads. No reports, and no changes
+              to items, templates or settings.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-text mt-3">
+        When you add someone, the system generates their password and shows it once — copy it and
+        pass it on. Nobody can look it up later, not even you.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width:60px;">#</th>
+            <th>Name</th>
+            <th class="d-none d-md-table-cell">Email</th>
+            <th>Role</th>
+            <th class="d-none d-lg-table-cell">Last signed in</th>
+            <th>Status</th>
+            <th class="text-end" style="width:150px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersBody">
+          <tr><td colspan="7" class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- ================= USER MODAL ================= -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <form id="userForm" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="userModalTitle">Add Team Member</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="userAlert" class="alert d-none" role="alert"></div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="uName">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="uName" maxlength="120" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="uEmail">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" id="uEmail" maxlength="120" required>
+              <div class="form-text" id="emailHint">They sign in with this address.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="uPhone">Phone</label>
+              <input type="text" class="form-control" id="uPhone" maxlength="30">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="uRole">Role</label>
+              <select class="form-select" id="uRole">
+                <option value="staff">Staff / Cashier — issue receipts only</option>
+                <option value="admin">Administrator — run the day to day</option>
+              </select>
+            </div>
+
+            <div class="col-12" id="passwordBlock">
+              <label class="form-label" for="uPassword">Password</label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="uPassword"
+                       placeholder="Leave blank to generate" autocomplete="new-password">
+                <button class="btn btn-outline-secondary" type="button" id="toggleUPass"
+                        title="Show or hide the password">
+                  <i class="bi bi-eye" id="toggleUPassIcon"></i>
+                </button>
+              </div>
+              <div class="form-text">
+                Leave this blank and a strong password is generated and shown once, for you to hand over.
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="uActive" checked>
+                <label class="form-check-label" for="uActive">
+                  Can sign in — untick to suspend without losing their history
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="userSubmitBtn">
+            <i class="bi bi-check2 me-1"></i> Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PASSWORD MODAL ================= -->
+<div class="modal fade" id="passwordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New Sign-in Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          This password is shown <strong>once</strong>. Copy it now and pass it on —
+          it cannot be retrieved later.
+        </div>
+
+        <p class="mb-3">Team member: <strong id="credName">—</strong></p>
+
+        <label class="form-label" for="credEmail">Email</label>
+        <div class="input-group mb-3">
+          <input type="text" class="form-control" id="credEmail" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyEmailBtn" title="Copy email">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+
+        <label class="form-label" for="credPassword">Password</label>
+        <div class="input-group">
+          <input type="text" class="form-control font-monospace" id="credPassword" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyPasswordBtn" title="Copy password">
+            <i class="bi bi-clipboard"></i>
+          </button>
+        </div>
+        <div class="form-text">Ask them to change it after their first sign-in.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="copyBothBtn">
+          <i class="bi bi-clipboard-check me-1"></i> Copy both
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TOASTS ================= -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index:1100;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/users.js"></script>
+</body>
+</html>

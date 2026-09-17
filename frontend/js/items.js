@@ -66,12 +66,13 @@ function clearAlert(id) { document.getElementById(id).classList.add("d-none"); }
 // ---------- Auth ----------
 (async function guard() {
     try {
-        currentUser = await api.get("/auth/me");
+        const { user } = await api.get("/auth/me");
+        currentUser = user;
         if (currentUser.role === "super_admin") {
             window.location.href = "/superadmin-dashboard.html";
             return;
         }
-        navUser.textContent = currentUser.fullName || "";
+        navUser.textContent = currentUser.full_name || "";
     } catch {
         window.location.href = "/index.html";
     }
@@ -246,6 +247,7 @@ itemsBody.addEventListener("click", async (e) => {
         document.getElementById("itName").value = item.name;
         document.getElementById("itDescription").value = item.description || "";
         document.getElementById("itPrice").value = item.default_price;
+        document.getElementById("itQty").value = item.default_quantity ?? 1;
         document.getElementById("itSku").value = item.sku || "";
         document.getElementById("itCategory").value = item.category_id || "";
         document.getElementById("itStatus").value = item.status;
@@ -273,6 +275,7 @@ document.getElementById("itemForm").addEventListener("submit", async (e) => {
         name: document.getElementById("itName").value.trim(),
         description: document.getElementById("itDescription").value.trim() || null,
         default_price: parseFloat(document.getElementById("itPrice").value),
+        default_quantity: parseFloat(document.getElementById("itQty").value) || 1,
         sku: document.getElementById("itSku").value.trim() || null,
         category_id: document.getElementById("itCategory").value || null,
         status: document.getElementById("itStatus").value,
@@ -280,6 +283,7 @@ document.getElementById("itemForm").addEventListener("submit", async (e) => {
 
     if (!payload.name) return setAlert("itemAlert", "Name is required.");
     if (isNaN(payload.default_price) || payload.default_price < 0) return setAlert("itemAlert", "Price must be a positive number.");
+    if (!(payload.default_quantity > 0)) return setAlert("itemAlert", "Default quantity must be greater than zero.");
 
     const btn = document.getElementById("itemSubmitBtn");
     const orig = btn.textContent;

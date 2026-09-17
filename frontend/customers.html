@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>People — Receipt System</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="./css/app.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-dark app-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand mb-0 h1" href="/dashboard.html">
+      <i class="bi bi-receipt-cutoff me-1"></i> Receipt System
+    </a>
+    <div class="d-flex align-items-center gap-3">
+      <span class="nav-user" id="navUser">…</span>
+      <button class="btn btn-sm btn-outline-light" id="logoutBtn">
+        <i class="bi bi-box-arrow-right me-1"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= MAIN ================= -->
+<main class="container-fluid py-4 px-3 px-md-4">
+
+  <div class="page-header">
+    <div>
+      <h4>People</h4>
+      <div class="text-muted small">
+        Students, tenants, patients, members — anyone you issue receipts to.
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/dashboard.html" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back
+      </a>
+      <button class="btn btn-outline-secondary btn-sm" id="importBtn">
+        <i class="bi bi-upload me-1"></i> Import CSV
+      </button>
+      <button class="btn btn-primary btn-sm" id="newPersonBtn">
+        <i class="bi bi-plus-lg me-1"></i> Add Person
+      </button>
+    </div>
+  </div>
+
+  <!-- What this page is for -->
+  <div class="alert alert-light border d-flex gap-3 align-items-start" role="note">
+    <i class="bi bi-lightbulb text-warning fs-5"></i>
+    <div class="small">
+      <strong>Why add people here?</strong>
+      When you issue a receipt you can start typing a name and pick the person —
+      their reference, class and contact details fill in automatically, so nobody
+      retypes them. Anything you correct on the receipt is saved back here, so a
+      class promotion only has to be recorded once.
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-6">
+          <input type="text" class="form-control" id="searchInput"
+                 placeholder="Search by name, reference, phone or email…">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="filterType">
+            <option value="">All types</option>
+            <option value="student">Students</option>
+            <option value="customer">Customers</option>
+            <option value="tenant">Tenants</option>
+            <option value="participant">Participants</option>
+            <option value="patient">Patients</option>
+            <option value="member">Members</option>
+            <option value="subscriber">Subscribers</option>
+            <option value="donor">Donors</option>
+            <option value="guest">Guests</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" id="filterStatus">
+            <option value="">All</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Inactive only</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-outline-secondary w-100" id="clearFiltersBtn" title="Clear filters">
+            <i class="bi bi-x-circle"></i>
+          </button>
+        </div>
+      </div>
+      <div class="form-text mt-2">
+        Tip: upload your class list once and search will find people as you type on the receipt form.
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th style="width:60px;">#</th>
+            <th>Name</th>
+            <th class="d-none d-md-table-cell">Type</th>
+            <th class="d-none d-md-table-cell">Reference</th>
+            <th class="d-none d-lg-table-cell">Details</th>
+            <th class="d-none d-lg-table-cell">Contact</th>
+            <th>Status</th>
+            <th class="text-end" style="width:120px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="peopleBody">
+          <tr><td colspan="8" class="empty-state">
+            <div class="spinner-border spinner-border-sm"></div>
+            <div class="mt-2">Loading…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="text-muted small" id="paginationInfo">—</div>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary" id="prevPageBtn" disabled>
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="btn btn-outline-secondary" id="nextPageBtn" disabled>
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ================= PERSON MODAL ================= -->
+<div class="modal fade" id="personModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form id="personForm" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="personModalTitle">Add Person</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="personAlert" class="alert d-none" role="alert"></div>
+
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label" for="pName">Full Name <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="pName" maxlength="150" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pType">Type</label>
+              <select class="form-select" id="pType">
+                <option value="student">Student</option>
+                <option value="customer">Customer</option>
+                <option value="tenant">Tenant</option>
+                <option value="participant">Participant</option>
+                <option value="patient">Patient</option>
+                <option value="member">Member</option>
+                <option value="subscriber">Subscriber</option>
+                <option value="donor">Donor</option>
+                <option value="guest">Guest</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pRef">Reference</label>
+              <input type="text" class="form-control" id="pRef" maxlength="100"
+                     placeholder="e.g. admission number">
+              <div class="form-text">Their ID in your records. Must be unique.</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pPhone">Phone</label>
+              <input type="text" class="form-control" id="pPhone" maxlength="30">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="pEmail">Email</label>
+              <input type="email" class="form-control" id="pEmail" maxlength="120">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="pAddress">Address</label>
+              <input type="text" class="form-control" id="pAddress">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h6 class="text-muted text-uppercase small mb-0">Remembered Details</h6>
+              <div class="form-text mb-0">
+                Anything you add here is filled in for this person on future receipts —
+                a student's class, a tenant's property. Keep it current.
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="addAttrBtn">
+              <i class="bi bi-plus-lg me-1"></i> Add detail
+            </button>
+          </div>
+
+          <div id="attrRows"></div>
+          <datalist id="attrSuggestions">
+            <option value="class"></option>
+            <option value="section"></option>
+            <option value="department"></option>
+            <option value="programme"></option>
+            <option value="cohort"></option>
+            <option value="level"></option>
+            <option value="house"></option>
+            <option value="property"></option>
+            <option value="unit"></option>
+            <option value="room_number"></option>
+            <option value="guardian_name"></option>
+          </datalist>
+
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" id="pActive" checked>
+            <label class="form-check-label" for="pActive">
+              Active — appears in receipt search
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="personSubmitBtn">
+            <i class="bi bi-check2 me-1"></i> Save Person
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ================= IMPORT MODAL ================= -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import People from CSV</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="importAlert" class="alert d-none" role="alert"></div>
+
+        <ol class="small text-muted mb-3">
+          <li>Download the template and fill it in Excel or Google Sheets.</li>
+          <li>Upload it here — nothing is saved until you confirm.</li>
+          <li>Fix any rows the system flags, then import the rest.</li>
+        </ol>
+
+        <div class="mb-3">
+          <a href="/customers/import/template" class="btn btn-outline-secondary btn-sm" download>
+            <i class="bi bi-download me-1"></i> Download CSV Template
+          </a>
+        </div>
+
+        <div class="alert alert-light border small mb-3">
+          <strong>Columns:</strong>
+          <code>full_name</code> (required), <code>type</code>, <code>external_ref</code>,
+          <code>phone</code>, <code>email</code>, <code>address</code>.
+          <br>
+          Any <em>other</em> column you add becomes a remembered detail — so a column
+          named <code>class</code> is stored against each person and filled in on their
+          next receipt.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="importFile">Choose CSV file</label>
+          <input type="file" class="form-control" id="importFile" accept=".csv">
+        </div>
+
+        <div id="importPreviewWrap" class="d-none">
+          <hr>
+          <h6 class="text-muted text-uppercase small mb-3">Preview — nothing saved yet</h6>
+
+          <div class="row g-2 mb-3">
+            <div class="col-4"><div class="stat-card text-center">
+              <div class="stat-label">Rows</div>
+              <div class="stat-value" id="impTotal">—</div>
+            </div></div>
+            <div class="col-4"><div class="stat-card text-center">
+              <div class="stat-label">Ready</div>
+              <div class="stat-value text-success" id="impValid">—</div>
+            </div></div>
+            <div class="col-4"><div class="stat-card text-center">
+              <div class="stat-label">Problems</div>
+              <div class="stat-value text-danger" id="impErrors">—</div>
+            </div></div>
+          </div>
+
+          <div id="importErrorList" class="d-none">
+            <h6 class="text-danger small text-uppercase mb-2">Rows that will be skipped</h6>
+            <div style="max-height:180px; overflow:auto;">
+              <table class="table table-sm">
+                <thead><tr><th>Line</th><th>Column</th><th>Problem</th></tr></thead>
+                <tbody id="impErrorsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="importPreviewTable" class="d-none">
+            <h6 class="text-muted small text-uppercase mb-2">First few rows</h6>
+            <div style="max-height:200px; overflow:auto;">
+              <table class="table table-sm">
+                <thead><tr><th>Name</th><th>Type</th><th>Reference</th><th>Details</th></tr></thead>
+                <tbody id="impPreviewBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-outline-secondary d-none" id="recheckImportBtn">
+          <i class="bi bi-arrow-clockwise me-1"></i> Re-check file
+        </button>
+        <button type="button" class="btn btn-primary d-none" id="commitImportBtn">
+          <i class="bi bi-check2 me-1"></i> Import
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DELETE CONFIRM MODAL ================= -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Remove Person</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="deleteAlert" class="alert d-none" role="alert"></div>
+        <p class="mb-2">Remove <strong id="delName">—</strong> from your people list?</p>
+        <p class="text-muted small mb-0">
+          Receipts already issued to them are not affected — a receipt keeps its own
+          copy of the customer's details forever.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Remove</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TOASTS ================= -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer" style="z-index:1100;"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./js/api.js"></script>
+<script src="./js/customers.js"></script>
+</body>
+</html>

@@ -37,7 +37,7 @@ function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString() : "—";
     try {
         const { user: me } = await api.get("/auth/me");
         if (me.role === "super_admin") { window.location.href = "/superadmin-dashboard.html"; return; }
-        navUser.textContent = me.fullName || "";
+        navUser.textContent = me.full_name || "";
     } catch { window.location.href = "/index.html"; }
 })();
 

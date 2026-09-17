@@ -51,7 +51,7 @@ let currentUser = null;
         const { user } = await api.get("/auth/me");
         currentUser = user;
         if (currentUser.role === "super_admin") { window.location.href = "/superadmin-dashboard.html"; return; }
-        navUser.textContent = currentUser.fullName || "";
+        navUser.textContent = currentUser.full_name || "";
     } catch { window.location.href = "/index.html"; }
 })();
 
@@ -144,6 +144,10 @@ function render() {
     // The PDF is served by the API, which sets Content-Disposition, so this is
     // a plain link: the browser handles the download and sends the session cookie.
     document.getElementById("pdfBtn").href = `/receipts/${receiptId}/pdf`;
+
+    // Copies the items and details into a NEW receipt. The one on screen is
+    // never altered — receipts are issued or voided, never edited.
+    document.getElementById("duplicateBtn").href = `/receipt-new.html?from=${receiptId}`;
 
     // Void button — only if allowed and not already void
     if (["owner","admin"].includes(currentUser?.role) && receipt.status !== "void") {

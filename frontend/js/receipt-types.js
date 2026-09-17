@@ -58,12 +58,13 @@ function clearAlert(id) { document.getElementById(id).classList.add("d-none"); }
 let currentUser = null;
 (async function guard() {
     try {
-        currentUser = await api.get("/auth/me");
+        const { user } = await api.get("/auth/me");
+        currentUser = user;
         if (currentUser.role === "super_admin") {
             window.location.href = "/superadmin-dashboard.html";
             return;
         }
-        navUser.textContent = currentUser.fullName || "";
+        navUser.textContent = currentUser.full_name || "";
     } catch {
         window.location.href = "/index.html";
     }

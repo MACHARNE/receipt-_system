@@ -79,6 +79,14 @@ async function validateRows(rows, companyId) {
             return;
         }
 
+        // Default quantity — optional, defaults to 1
+        const qtyRaw = (row.default_quantity || row.qty || row.quantity || "").toString().trim();
+        const quantity = qtyRaw === "" ? 1 : Number(qtyRaw.replace(/,/g, ""));
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            errors.push({ line, field: "default_quantity", message: "Default quantity must be greater than zero" });
+            return;
+        }
+
         // Status
         if (!["active", "inactive"].includes(status)) {
             errors.push({ line, field: "status", message: "status must be 'active' or 'inactive'" });
@@ -109,6 +117,7 @@ async function validateRows(rows, companyId) {
             name,
             description: (row.description || "").trim() || null,
             default_price: price,
+            default_quantity: quantity,
             sku: sku || null,
             status,
         });
@@ -162,7 +171,7 @@ router.get("/", async (req, res) => {
         );
 
         const listRes = await pool.query(
-            `SELECT i.id, i.name, i.description, i.default_price, i.sku, i.status,
+            `SELECT i.id, i.name, i.description, i.default_price, i.default_quantity, i.sku, i.status,
                     i.category_id, c.name AS category_name,
                     i.created_at, i.updated_at
              FROM items i
@@ -199,7 +208,7 @@ router.get("/", async (req, res) => {
 router.post("/", requireRole("owner", "admin"), async (req, res) => {
     try {
         const companyId = req.session.companyId;
-        const { name, description, default_price, sku, category_id, status } = req.body;
+        const { name, description, default_price, default_quantity, sku, category_id, status } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ message: "Item name is required.", field: "name" });
@@ -208,6 +217,18 @@ router.post("/", requireRole("owner", "admin"), async (req, res) => {
         const price = Number(default_price);
         if (isNaN(price) || price < 0) {
             return res.status(400).json({ message: "Price must be a positive number.", field: "default_price" });
+        }
+
+        // The quantity this item is normally sold in. Never used as stock: it
+        // only pre-fills the receipt form.
+        const quantity = default_quantity === undefined || default_quantity === ""
+            ? 1
+            : Number(default_quantity);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            return res.status(400).json({
+                message: "Default quantity must be greater than zero.",
+                field: "default_quantity",
+            });
         }
 
         const finalStatus = (status || "active").toLowerCase();
@@ -239,14 +260,15 @@ router.post("/", requireRole("owner", "admin"), async (req, res) => {
 
         const result = await pool.query(
             `INSERT INTO items
-                (company_id, name, description, default_price, sku, category_id, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (company_id, name, description, default_price, default_quantity, sku, category_id, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
                 companyId,
                 name.trim(),
                 description || null,
                 price,
+                quantity,
                 sku ? sku.trim() : null,
                 category_id || null,
                 finalStatus,
@@ -275,7 +297,7 @@ router.put("/:id", requireRole("owner", "admin"), async (req, res) => {
     try {
         const companyId = req.session.companyId;
         const id = parseInt(req.params.id, 10);
-        const { name, description, default_price, sku, category_id, status } = req.body;
+        const { name, description, default_price, default_quantity, sku, category_id, status } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ message: "Item name is required.", field: "name" });
@@ -283,6 +305,16 @@ router.put("/:id", requireRole("owner", "admin"), async (req, res) => {
         const price = Number(default_price);
         if (isNaN(price) || price < 0) {
             return res.status(400).json({ message: "Price must be a positive number.", field: "default_price" });
+        }
+
+        const quantity = default_quantity === undefined || default_quantity === ""
+            ? 1
+            : Number(default_quantity);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            return res.status(400).json({
+                message: "Default quantity must be greater than zero.",
+                field: "default_quantity",
+            });
         }
 
         const finalStatus = (status || "active").toLowerCase();
@@ -303,14 +335,15 @@ router.put("/:id", requireRole("owner", "admin"), async (req, res) => {
 
         const result = await pool.query(
             `UPDATE items SET
-                name = $1, description = $2, default_price = $3, sku = $4,
-                category_id = $5, status = $6, updated_at = NOW()
-             WHERE id = $7 AND company_id = $8
+                name = $1, description = $2, default_price = $3, default_quantity = $4,
+                sku = $5, category_id = $6, status = $7, updated_at = NOW()
+             WHERE id = $8 AND company_id = $9
              RETURNING *`,
             [
                 name.trim(),
                 description || null,
                 price,
+                quantity,
                 sku ? sku.trim() : null,
                 category_id || null,
                 finalStatus,
@@ -373,9 +406,10 @@ router.delete("/:id", requireRole("owner", "admin"), async (req, res) => {
 // ============================================================
 router.get("/import/template", (req, res) => {
     const csv =
-        "name,description,default_price,sku,status\n" +
-        "Tuition Fee,First term tuition,50000,TUI-001,active\n" +
-        "ICT Fee,ICT lab access,5000,ICT-001,active\n";
+        "name,description,default_price,default_quantity,sku,status\n" +
+        "Tuition Fee,First term tuition,50000,1,TUI-001,active\n" +
+        "ICT Fee,ICT lab access,5000,1,ICT-001,active\n" +
+        "Exercise Book,80-leaf notebook,500,10,EXB-001,active\n";
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", "attachment; filename=items_template.csv");
     res.send(csv);
@@ -487,8 +521,8 @@ router.post(
 
             const insertSql = `
                 INSERT INTO items
-                    (company_id, name, description, default_price, sku, status)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                    (company_id, name, description, default_price, default_quantity, sku, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
             `;
 
             for (const row of valid) {
@@ -497,6 +531,7 @@ router.post(
                     row.name,
                     row.description,
                     row.default_price,
+                    row.default_quantity,
                     row.sku,
                     row.status,
                 ]);

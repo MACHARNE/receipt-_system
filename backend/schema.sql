@@ -283,7 +283,8 @@ CREATE TABLE customer_profiles (
     id              SERIAL PRIMARY KEY,
     customer_id     INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     profile_key     VARCHAR(80) NOT NULL,       -- 'class','term','property','unit'
-    profile_value   TEXT
+    profile_value   TEXT,
+    UNIQUE (customer_id, profile_key)           -- one value per attribute per person
 );
 CREATE INDEX idx_customer_profiles_customer ON customer_profiles(customer_id);
 CREATE INDEX idx_customer_profiles_key ON customer_profiles(profile_key);

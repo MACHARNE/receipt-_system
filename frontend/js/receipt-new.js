@@ -11,6 +11,8 @@ const state = {
     themeBaseColor: "#0d6efd",
     currency: "NGN",
     lastColorDecision: null, // 'accepted' | 'changed' | null
+    customerId: null,       // the saved person this receipt is for, if picked
+    customerIndex: new Map(),
 };
 
 const navUser = document.getElementById("navUser");
@@ -57,6 +59,9 @@ function pickTextColor(hex) {
     const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
     return L > 0.55 ? "#111827" : "#ffffff";
 }
+function humanise(key) {
+    return String(key).replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
 
 // ---------- Auth ----------
 let currentUser = null;
@@ -69,7 +74,7 @@ let currentStep = 1;
             window.location.href = "/superadmin-dashboard.html";
             return;
         }
-        navUser.textContent = currentUser.fullName || "";
+        navUser.textContent = currentUser.full_name || "";
     } catch {
         window.location.href = "/index.html";
     }
@@ -112,8 +117,13 @@ async function loadOptions() {
 
 // ---------- Type change ----------
 document.getElementById("receiptType").addEventListener("change", async (e) => {
+    await selectType(parseInt(e.target.value, 10));
+});
+
+// Extracted so "start from an earlier receipt" can select the type and have the
+// fields rendered before it fills them in.
+async function selectType(typeId) {
     hideAlert();
-    const typeId = parseInt(e.target.value, 10);
     if (!typeId) {
         document.getElementById("dynamicFieldsCard").classList.add("d-none");
         state.currentFields = [];
@@ -137,7 +147,7 @@ document.getElementById("receiptType").addEventListener("change", async (e) => {
 
     // Color prompt
     handleColorForType(typeId);
-});
+}
 
 // ---------- Color handling ----------
 function handleColorForType(typeId) {
@@ -350,7 +360,7 @@ function renderItems() {
 
     // Build catalog options
     const catalogOpts = (state.options?.items || []).map(i =>
-        `<option value="${i.id}" data-price="${i.default_price}" data-name="${escapeHtml(i.name)}">${escapeHtml(i.name)}</option>`
+        `<option value="${i.id}" data-price="${i.default_price}" data-qty="${i.default_quantity ?? 1}" data-name="${escapeHtml(i.name)}">${escapeHtml(i.name)}</option>`
     ).join("");
 
     body.innerHTML = state.items.map((it, i) => `
@@ -397,8 +407,12 @@ document.getElementById("itemsBody").addEventListener("change", (e) => {
     state.items[i].item_id = parseInt(opt.value, 10);
     state.items[i].item_name = opt.dataset.name;
     state.items[i].unit_price = parseFloat(opt.dataset.price) || 0;
+    // Products carry the quantity they are normally sold in, if one was set.
+    const defaultQty = parseFloat(opt.dataset.qty);
+    state.items[i].quantity = Number.isFinite(defaultQty) && defaultQty > 0 ? defaultQty : 1;
     row.querySelector("[data-item-name]").value = state.items[i].item_name;
     row.querySelector("[data-item-price]").value = state.items[i].unit_price;
+    row.querySelector("[data-item-qty]").value = state.items[i].quantity;
     row.querySelector("[data-item-total]").textContent = money(state.items[i].quantity * state.items[i].unit_price);
     recalcTotals();
 });
@@ -543,6 +557,9 @@ document.getElementById("receiptForm").addEventListener("submit", async (e) => {
         customer_name: document.getElementById("custName").value.trim() || null,
         customer_phone: document.getElementById("custPhone").value.trim() || null,
         customer_email: document.getElementById("custEmail").value.trim() || null,
+        // Present only when a saved person was picked: lets the server save any
+        // corrections back to their record.
+        customer_id: state.customerId || null,
         items: validItems,
         discount_type: document.getElementById("discountType").value || null,
         discount_value: parseFloat(document.getElementById("discountValue").value) || 0,
@@ -576,4 +593,156 @@ document.getElementById("receiptForm").addEventListener("submit", async (e) => {
     updateItemsUsage();
     recalcTotals();
     showStep(1);
+
+    // "Create another like this" sends the user here with the id of the receipt
+    // to copy. The original is never modified.
+    const fromId = parseInt(new URLSearchParams(window.location.search).get("from"), 10);
+    if (fromId) await startFromReceipt(fromId);
 })();
+
+// ---------- Start from an earlier receipt ----------
+async function startFromReceipt(receiptId) {
+    try {
+        const { basis } = await api.get(`/receipts/${receiptId}/basis`);
+
+        // Select the type first: the detail fields must exist before values can
+        // be placed into them.
+        document.getElementById("receiptType").value = basis.receipt_type_id;
+        await selectType(basis.receipt_type_id);
+        document.getElementById("templateSelect").value = basis.template_id || "";
+
+        state.items = (basis.items || []).map(item => ({
+            item_id: item.item_id || null,
+            item_name: item.item_name || "",
+            description: item.description || "",
+            quantity: Number(item.quantity) || 1,
+            unit_price: Number(item.unit_price) || 0,
+        }));
+        renderItems();
+        updateItemsUsage();
+
+        if (basis.discount_type) {
+            document.getElementById("discountType").value = basis.discount_type;
+            const discountValue = document.getElementById("discountValue");
+            discountValue.disabled = false;
+            discountValue.value = Number(basis.discount_value) || 0;
+        }
+        if (basis.payment_method) {
+            document.getElementById("paymentMethod").value = basis.payment_method;
+        }
+
+        // Details that describe the transaction rather than the person carry over
+        // (the session being billed, the fee category). The person's own details
+        // are filled in when their name is chosen.
+        for (const [key, value] of Object.entries(basis.field_values || {})) {
+            const el = document.querySelector(`#dynamicFieldsWrap [data-field-key="${key}"]`);
+            if (!el) continue;
+            if (el.type === "checkbox") el.checked = Boolean(value);
+            else el.value = value;
+        }
+
+        recalcTotals();
+
+        document.getElementById("basisNoticeTitle").textContent =
+            `Copied from receipt ${basis.source_receipt_number}`;
+        const notice = document.getElementById("basisNotice");
+        notice.classList.remove("d-none");
+        notice.classList.add("d-flex");
+
+        toast("Copied the earlier receipt. Change the name to issue it for someone else.", "success");
+    } catch (err) {
+        showAlert(err.message || "Could not copy that receipt.");
+    }
+}
+
+// ---------- Person lookup ----------
+// Typing a saved person's name fills in their reference, class and contact
+// details, so nobody retypes information the company already has.
+let personSearchTimer = null;
+
+function customerFieldValues(customer) {
+    return {
+        // Names differ per receipt type: a student, a tenant, a patient.
+        student_name: customer.full_name,
+        customer_name: customer.full_name,
+        payer_name: customer.full_name,
+        tenant_name: customer.full_name,
+        patient_name: customer.full_name,
+        participant_name: customer.full_name,
+        guest_name: customer.full_name,
+        donor_name: customer.full_name,
+        client_name: customer.full_name,
+        // References likewise.
+        student_id: customer.external_ref,
+        patient_id: customer.external_ref,
+        member_id: customer.external_ref,
+        member_no: customer.external_ref,
+        tenant_code: customer.external_ref,
+        registration_number: customer.external_ref,
+        customer_phone: customer.phone,
+        phone: customer.phone,
+        customer_email: customer.email,
+        email: customer.email,
+        // Whatever else the company chose to remember (class, house, property).
+        ...(customer.profiles || {}),
+    };
+}
+
+function applyCustomer(customer) {
+    state.customerId = customer.id;
+
+    document.getElementById("custName").value = customer.full_name;
+    if (customer.phone) document.getElementById("custPhone").value = customer.phone;
+    if (customer.email) document.getElementById("custEmail").value = customer.email;
+
+    for (const [key, value] of Object.entries(customerFieldValues(customer))) {
+        if (value === null || value === undefined || value === "") continue;
+        const el = document.querySelector(`#dynamicFieldsWrap [data-field-key="${key}"]`);
+        if (!el) continue;
+        if (el.type === "checkbox") el.checked = Boolean(value);
+        else el.value = value;
+    }
+
+    const details = Object.entries(customer.profiles || {})
+        .map(([key, value]) => `${escapeHtml(humanise(key))}: <strong>${escapeHtml(value)}</strong>`)
+        .join(" · ");
+
+    const notice = document.getElementById("personNotice");
+    notice.innerHTML = `<i class="bi bi-person-check me-1"></i>
+        Filled in from your records for <strong>${escapeHtml(customer.full_name)}</strong>${
+            customer.external_ref ? ` (${escapeHtml(customer.external_ref)})` : ""}.
+        ${details ? `<div class="small mt-1">${details}</div>` : ""}
+        <div class="small mt-1">
+          Change anything that is out of date — it is saved back to their record when you issue this receipt.
+        </div>`;
+    notice.classList.remove("d-none");
+}
+
+async function searchPeople(term) {
+    try {
+        const { customers } = await api.get(`/customers/search?q=${encodeURIComponent(term)}`);
+
+        document.getElementById("customerSuggestions").innerHTML =
+            customers.map(c => `<option value="${escapeHtml(c.full_name)}"></option>`).join("");
+        customers.forEach(c => state.customerIndex.set(c.full_name.toLowerCase(), c));
+
+        const exact = customers.find(c => c.full_name.toLowerCase() === term.toLowerCase());
+        if (exact) applyCustomer(exact);
+    } catch {
+        // A failed lookup must never stop someone issuing a receipt.
+    }
+}
+
+document.getElementById("custName").addEventListener("input", (e) => {
+    const term = e.target.value.trim();
+
+    // Typing a name we do not have saved means this is no longer that person.
+    if (state.customerIndex.size && !state.customerIndex.has(term.toLowerCase())) {
+        state.customerId = null;
+        document.getElementById("personNotice").classList.add("d-none");
+    }
+
+    if (term.length < 2) return;
+    clearTimeout(personSearchTimer);
+    personSearchTimer = setTimeout(() => searchPeople(term), 250);
+});

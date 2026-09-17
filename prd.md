@@ -2,7 +2,7 @@
 
 ## Multi-Purpose Receipt, Invoice & Payment Management System
 
-**Version:** 3.4 — Complete Consolidated Edition
+**Version:** 3.5 — Complete Consolidated Edition
 **Status:** Approved Baseline — Source of Truth for Development, Teaching, and Deployment
 **Document Owner:** Product & Engineering
 **Audience:** Product team, engineering team, students, QA, stakeholders
@@ -11,16 +11,16 @@
 
 ## DOCUMENT CONTROL
 
-| Version | Date        | Change Summary                                                                                      |
-| ------- | ----------- | --------------------------------------------------------------------------------------------------- |
-| 1.0     | Initial     | Product concept                                                                                     |
-| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                              |
-| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                      |
-| 1.3     | Superseded  | Bulk import                                                                                         |
-| 2.0     | Superseded  | Consolidated with built codebase                                                                    |
-| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                |
-| 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1) |
-| **3.4** | **Current** | **Rate limiting added to sign-in and public verification (§35, §40, §47, §52.1)**                   |
+| Version | Date        | Change Summary                                                                                                                                                   |
+| ------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0     | Initial     | Product concept                                                                                                                                                  |
+| 1.1     | Superseded  | Super Admin, plans, per-company limits                                                                                                                           |
+| 1.2     | Superseded  | Per-company limits, EAV, role-aware dashboards                                                                                                                   |
+| 1.3     | Superseded  | Bulk import                                                                                                                                                      |
+| 2.0     | Superseded  | Consolidated with built codebase                                                                                                                                 |
+| 3.0     | Superseded  | Complete PRD with theory, architecture, procedures, phases, glossary                                                                                             |
+| 3.1     | Superseded  | Company identity made platform-managed; receipt number format corrected; build status added (§52.1)                                                              |
+| **3.5** | **Current** | **People module with CSV import, receipt prefill and write-back, repeat-a-receipt, item default quantity, rebuilt settings page (§17, §18, §19, §20, §33, §46)** |
 
 ---
 
@@ -568,9 +568,16 @@ Each company stores up to `companies.max_products` items.
 - Name
 - Description
 - Default price
+- Default quantity (optional, default 1)
 - SKU (optional, unique per company)
 - Category (optional)
 - Status: `active` / `inactive`
+
+> **Default quantity** is the quantity the item is normally sold in — 1 for a fee, 100 for a
+> pack of 100. Selecting it from the catalog fills that number into the receipt line, which the
+> user can still change. It is deliberately **not stock control**: nothing is decremented or
+> reserved, and §54 still lists real inventory as future scope. It can be set on the item form
+> or supplied as a `default_quantity` column on import.
 
 **Server enforces limit on:**
 
@@ -607,6 +614,31 @@ Reusable customer / payer records.
 
 **Search:** Available during receipt creation (autocomplete from name).
 
+### 18.1 Implementation
+
+`routes/customers.js`, `customers.html`, `js/customers.js`.
+
+- The importer understands `full_name`, `type`, `external_ref`, `phone`, `email`, `address`
+  and `notes`. **Any other column becomes a remembered attribute** — a column called `class`
+  is stored against each person and filled in on their next receipt. One import format
+  therefore works for schools, landlords, clinics and memberships alike.
+- `external_ref` is unique per company, so an admission number cannot be duplicated.
+- **Prefill.** Typing a name on the receipt form searches these records; choosing one fills in
+  the reference, class and contact details, mapping them onto whichever detail fields the
+  receipt type actually uses (`student_name`, `patient_name`, `tenant_code`, …). Everything
+  stays editable.
+- **Write-back.** When a receipt is issued for a saved person, the details that describe the
+  _person_ rather than the transaction are copied back onto their record — so correcting a
+  class on a receipt means the next receipt for that student is already right. The receipt
+  keeps its own snapshot and is never rewritten. See `utils/customerSync.js`; changes are
+  audited as `customer.updated_from_receipt`.
+- A receipt can never _delete_ information: attributes it says nothing about are left alone.
+- Which fields count as belonging to the person is defined in one place
+  (`NAME_KEYS`, `REFERENCE_KEYS`, `REMEMBERED_ATTRIBUTES` in `utils/customerSync.js`) and is
+  deliberately not "every field on the receipt" — the fee category and the amount are
+  properties of the transaction, not of the person.
+- There is no plan limit on people. Plans cap items and receipt lines only.
+
 ---
 
 ## 19. BULK IMPORT
@@ -618,6 +650,12 @@ CSV import for:
 3. Students
 4. Tenants
 5. Participants
+
+> **Implementation note:** the items and people importers are built
+> (`/items/import/*`, `/customers/import/*`). Students, tenants and participants do not need
+> importers of their own — they are the same `customers` table distinguished by `type`, so one
+> people import covers all of them and a school can upload a class list with `type,student`
+> in a single column.
 
 **Workflow:**
 
@@ -678,6 +716,23 @@ Server:
 
 **Step 8 — Completion**
 Redirect to view with actions: View, Print, Download PDF, New Receipt.
+
+### 20.1 Repeating a receipt
+
+Issuing the same kind of receipt for a different person is the most common repeat task — a
+term's fees for the next student, this month's bill for the next tenant. Rather than filling
+everything in again:
+
+1. Open an already-issued receipt and choose **Create another like this**.
+2. `GET /receipts/:id/basis` returns the type, line items, discount, payment method and the
+   transaction's detail values (the session, the fee category).
+3. The form opens pre-filled with those, and with the _person's_ details deliberately cleared.
+4. The user types the new name; the saved record fills in their reference and class.
+
+Everything copied in remains editable. The result is a **new receipt with its own number** —
+the original is never altered, so §27 still holds: receipts are never edited. The basis
+endpoint drops the name, reference and remembered person attributes so a copy can never be
+mis-issued to the wrong person by default.
 
 ---
 
@@ -1406,6 +1461,7 @@ backend/
 │   ├── company.js
 │   ├── categories.js
 │   ├── items.js
+│   ├── customers.js       ← people: students, tenants, patients, members
 │   ├── receiptConfig.js
 │   ├── receipts.js
 │   ├── verify.js          ← public QR verification (no session guard)
@@ -1415,6 +1471,7 @@ backend/
     ├── theme.js
     ├── receiptNumber.js
     ├── password.js
+    ├── customerSync.js    ← keeps saved people in step with issued receipts
     ├── receiptData.js     ← shared loader for the JSON and PDF renderers
     ├── verifyUrl.js       ← absolute /verify/<token> link
     ├── qr.js              ← QR options shared by screen and PDF
@@ -1533,6 +1590,7 @@ receipt_system/
 │   │   ├── company.js
 │   │   ├── categories.js
 │   │   ├── items.js
+│   │   ├── customers.js
 │   │   ├── receiptConfig.js
 │   │   ├── receipts.js
 │   │   ├── verify.js
@@ -1541,6 +1599,7 @@ receipt_system/
 │   │   ├── theme.js
 │   │   ├── receiptNumber.js
 │   │   ├── password.js
+│   │   ├── customerSync.js
 │   │   ├── receiptData.js
 │   │   ├── verifyUrl.js
 │   │   ├── qr.js
@@ -1554,6 +1613,7 @@ receipt_system/
     ├── dashboard.html
     ├── settings.html
     ├── items.html
+    ├── customers.html
     ├── receipt-types.html
     ├── templates.html
     ├── receipts.html
@@ -1569,7 +1629,9 @@ receipt_system/
     └── js/
         ├── api.js
         ├── auth.js
+        ├── settings.js
         ├── items.js
+        ├── customers.js
         ├── receipt-types.js
         ├── templates.js
         ├── receipts.js
@@ -1633,6 +1695,20 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 > Company identity is **read-only** for company users. There is no `PUT /company/settings`
 > and no company-side logo upload — those are Super Admin operations (below).
 
+### Customers (people)
+
+| Method | Route                        | Purpose                              |
+| ------ | ---------------------------- | ------------------------------------ |
+| GET    | `/customers`                 | List with search/filter              |
+| GET    | `/customers/search`          | Small lookup for the receipt form    |
+| GET    | `/customers/:id`             | One person with attributes           |
+| POST   | `/customers`                 | Create                               |
+| PUT    | `/customers/:id`             | Update                               |
+| DELETE | `/customers/:id`             | Delete                               |
+| GET    | `/customers/import/template` | CSV template                         |
+| POST   | `/customers/import/validate` | Dry run (no writes)                  |
+| POST   | `/customers/import/commit`   | Insert valid rows in one transaction |
+
 ### Categories
 
 | Method | Route             | Purpose |
@@ -1674,15 +1750,16 @@ to `audit_logs` as `company.identity_updated` with old and new values.
 
 ### Receipts
 
-| Method | Route                           | Purpose         |
-| ------ | ------------------------------- | --------------- |
-| GET    | `/receipts`                     | List            |
-| GET    | `/receipts/next-options`        | Form options    |
-| GET    | `/receipts/type/:typeId/fields` | Fields for type |
-| GET    | `/receipts/:id`                 | Read            |
-| POST   | `/receipts`                     | Create          |
-| POST   | `/receipts/:id/void`            | Void            |
-| GET    | `/receipts/:id/pdf`             | Download PDF    |
+| Method | Route                           | Purpose                           |
+| ------ | ------------------------------- | --------------------------------- |
+| GET    | `/receipts`                     | List                              |
+| GET    | `/receipts/next-options`        | Form options                      |
+| GET    | `/receipts/type/:typeId/fields` | Fields for type                   |
+| GET    | `/receipts/:id`                 | Read                              |
+| GET    | `/receipts/:id/basis`           | Start a new receipt from this one |
+| POST   | `/receipts`                     | Create                            |
+| POST   | `/receipts/:id/void`            | Void                              |
+| GET    | `/receipts/:id/pdf`             | Download PDF                      |
 
 ### Verify
 
@@ -1855,7 +1932,7 @@ Each phase ends with a working, testable feature.
 | 9     | ❌ Not built | `/reports` is not mounted and `reports.html` does not exist.                                                                                                                                   |
 | 10    | ❌ Not built | `/users` is not mounted and `users.html` does not exist.                                                                                                                                       |
 | 11    | ❌ Not built | Role-aware dashboards; `dashboard.html` is a single general page.                                                                                                                              |
-| —     | ❌ Not built | Customers (§18) — no route, no page.                                                                                                                                                           |
+| —     | ✅ Built     | Customers (§18) — now built with import, prefill and write-back (§18.1)                                                                                                                        |
 
 **Still open after Phase 8:**
 

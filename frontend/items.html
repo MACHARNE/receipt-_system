@@ -138,11 +138,16 @@
           </div>
 
           <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label">Price <span class="text-danger">*</span></label>
               <input type="number" class="form-control" id="itPrice" min="0" step="0.01" required>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+              <label class="form-label">Default Quantity</label>
+              <input type="number" class="form-control" id="itQty" min="0.001" step="0.001" value="1">
+              <div class="form-text">Fills the receipt line — 100 for a pack of 100.</div>
+            </div>
+            <div class="col-md-4">
               <label class="form-label">SKU</label>
               <input type="text" class="form-control" id="itSku">
             </div>

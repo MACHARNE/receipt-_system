@@ -19,6 +19,9 @@ const { loadReceiptBundle } = require("../utils/receiptData");
 const { verifyUrlFor } = require("../utils/verifyUrl");
 const { qrDataUrl } = require("../utils/qr");
 const { buildReceiptPdf } = require("../utils/pdf");
+const {
+    syncCustomerFromReceipt, NAME_KEYS, REFERENCE_KEYS, REMEMBERED_ATTRIBUTES,
+} = require("../utils/customerSync");
 
 const router = express.Router();
 router.use(requireCompanyUser);
@@ -124,7 +127,7 @@ router.get("/next-options", async (req, res) => {
         );
 
         const items = await pool.query(
-            `SELECT id, name, description, default_price
+            `SELECT id, name, description, default_price, default_quantity
              FROM items
              WHERE company_id = $1 AND status = 'active'
              ORDER BY name ASC`,
@@ -532,6 +535,39 @@ router.post("/", requireRole("owner", "admin", "staff"), async (req, res) => {
             }
         }
 
+        // ---- Learn the person's details for next time ----
+        // The receipt keeps its own snapshot, but the stored record is corrected
+        // so the next receipt for this person starts from the right class and
+        // reference. Wrapped in a savepoint so a bookkeeping failure can never
+        // cost the user the receipt they just issued.
+        await client.query("SAVEPOINT customer_sync");
+        try {
+            const sync = await syncCustomerFromReceipt(
+                client,
+                companyId,
+                finalCustomerId,
+                {
+                    customer_name: finalCustomerName,
+                    customer_phone: finalCustomerPhone,
+                    customer_email: finalCustomerEmail,
+                },
+                field_values || {}
+            );
+
+            if (sync.changed) {
+                await client.query(
+                    `INSERT INTO audit_logs
+                        (company_id, user_id, action, entity_type, entity_id, new_values, ip_address)
+                     VALUES ($1, $2, 'customer.updated_from_receipt', 'customer', $3, $4, $5)`,
+                    [companyId, req.session.userId, finalCustomerId, JSON.stringify(sync.changes), req.ip]
+                );
+            }
+            await client.query("RELEASE SAVEPOINT customer_sync");
+        } catch (syncErr) {
+            await client.query("ROLLBACK TO SAVEPOINT customer_sync");
+            console.error("Customer sync failed (receipt still saved):", syncErr.message);
+        }
+
         // ---- Save theme base color as the type default (retain for next time) ----
         if (theme_base_color && /^#?[0-9a-fA-F]{6}$/.test(theme_base_color)) {
             const { buildTheme } = require("../utils/theme");
@@ -575,6 +611,63 @@ router.post("/", requireRole("owner", "admin", "staff"), async (req, res) => {
         res.status(500).json({ message: "Failed to create receipt." });
     } finally {
         client.release();
+    }
+});
+
+// ============================================================
+// GET /receipts/:id/basis — start another receipt from this one
+// ============================================================
+// Issuing the same kind of receipt for a different person is the most common
+// repeat task: same type, same lines, same fee category, different name. This
+// returns everything worth carrying over, and deliberately leaves out anything
+// that describes the person, so the only thing left to supply is who it is for.
+//
+// The original receipt is never touched. The user gets a new receipt with its
+// own number, so §27 still holds: receipts are never edited.
+router.get("/:id/basis", async (req, res) => {
+    try {
+        const companyId = req.session.companyId;
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id < 1) {
+            return res.status(400).json({ message: "Invalid receipt id." });
+        }
+
+        const bundle = await loadReceiptBundle(companyId, id);
+        if (!bundle) return res.status(404).json({ message: "Receipt not found." });
+
+        const { receipt, items, field_values: fieldValues } = bundle;
+
+        // Anything describing the person is dropped; everything else is kept.
+        const personKeys = new Set([
+            ...NAME_KEYS, ...REFERENCE_KEYS, ...REMEMBERED_ATTRIBUTES,
+        ]);
+        const carriedFields = {};
+        for (const [key, value] of Object.entries(fieldValues)) {
+            if (!personKeys.has(key)) carriedFields[key] = value;
+        }
+
+        res.json({
+            basis: {
+                source_receipt_id: receipt.id,
+                source_receipt_number: receipt.receipt_number,
+                receipt_type_id: receipt.receipt_type_id,
+                template_id: receipt.template_id,
+                discount_type: receipt.discount_type,
+                discount_value: receipt.discount_value,
+                payment_method: receipt.payment_method,
+                field_values: carriedFields,
+                items: items.map(item => ({
+                    item_id: item.item_id,
+                    item_name: item.item_name,
+                    description: item.description,
+                    quantity: Number(item.quantity),
+                    unit_price: Number(item.unit_price),
+                })),
+            },
+        });
+    } catch (err) {
+        console.error("Receipt basis failed:", err);
+        res.status(500).json({ message: "Failed to prepare a new receipt from this one." });
     }
 });
 
